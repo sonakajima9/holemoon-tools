@@ -8,13 +8,16 @@ from PyInstaller.utils.hooks import collect_all
 # (PyInstaller 6.x でのDLL収集挙動変更に対応)
 _webrtcvad = collect_all('webrtcvad')
 _sounddevice = collect_all('sounddevice')
+# sounddevice の PortAudio DLL は _sounddevice_data という別パッケージに格納されているため
+# collect_all('sounddevice') だけでは portaudio64bit.dll が拾われない場合がある
+_sounddevice_data = collect_all('_sounddevice_data')
 _dearpygui = collect_all('dearpygui')
 
 a = Analysis(
     ['gui.py'],
     pathex=['.'],
-    binaries=_webrtcvad[1] + _sounddevice[1] + _dearpygui[1],
-    datas=_webrtcvad[0] + _sounddevice[0] + _dearpygui[0],
+    binaries=_webrtcvad[1] + _sounddevice[1] + _sounddevice_data[1] + _dearpygui[1],
+    datas=_webrtcvad[0] + _sounddevice[0] + _sounddevice_data[0] + _dearpygui[0],
     hiddenimports=[
         'analyze',
         'soundfile',
@@ -23,7 +26,7 @@ a = Analysis(
         'numpy.core._multiarray_umath',
         'cffi',
         '_cffi_backend',
-    ] + _webrtcvad[2] + _sounddevice[2] + _dearpygui[2],
+    ] + _webrtcvad[2] + _sounddevice[2] + _sounddevice_data[2] + _dearpygui[2],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
