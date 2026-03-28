@@ -21,11 +21,12 @@ a = Analysis(
     hiddenimports=[
         'analyze',
         'soundfile',
-        'soundfile._sndfile',
+        '_soundfile',           # soundfile の CFFI バックエンド (soundfile._sndfile は誤り)
         'numpy',
         'numpy.core._multiarray_umath',
         'cffi',
         '_cffi_backend',
+        'dearpygui._dearpygui', # dearpygui の C 拡張を明示的に含める
     ] + _webrtcvad[2] + _sounddevice[2] + _sounddevice_data[2] + _dearpygui[2],
     hookspath=[],
     hooksconfig={},
