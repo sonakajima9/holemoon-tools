@@ -687,13 +687,41 @@ async function scanBtServices() {
   scanBtn.disabled = true;
   showToast('デバイスを検索中...');
   try {
-    const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
-    showToast('サービスを列挙中...');
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: []
+    });
+    showToast('GATT 接続中...');
     const server = await connectGattWithTimeout(device.gatt);
-    const services = await server.getPrimaryServices();
+
+    isUserDisconnected = false;
+    reconnectAttempts = 0;
+
+    // サービス・キャラクタリスティックの取得を試みる
+    const candidates = [];
+    const inputServiceUUID = document.getElementById('btServiceUUID').value.trim();
+
+    // まず入力欄の serviceUUID で試みる
+    let services = [];
+    if (inputServiceUUID) {
+      try {
+        const svc = await server.getPrimaryService(inputServiceUUID);
+        services = [svc];
+      } catch (_) {
+        // SecurityError 等の場合は getPrimaryServices() にフォールバック
+      }
+    }
+
+    // フォールバック: getPrimaryServices()（Chrome 実験フラグが有効な環境向け）
+    if (services.length === 0) {
+      try {
+        services = await server.getPrimaryServices();
+      } catch (_) {
+        // 取得できなかった場合は空のまま
+      }
+    }
 
     // 書き込み可能なキャラクタリスティックを全サービスから収集
-    const candidates = [];
     for (const service of services) {
       let chars;
       try {
@@ -712,20 +740,27 @@ async function scanBtServices() {
           candidates.push({
             serviceUUID: service.uuid,
             charUUID: char.uuid,
-            propLabels
+            propLabels,
+            characteristic: char
           });
         }
       }
     }
-    server.disconnect();
 
     if (candidates.length === 0) {
+      server.disconnect();
       showToast('書き込み可能なキャラクタリスティックが見つかりませんでした', true);
-    } else if (candidates.length === 1) {
-      applyUuidCandidate(candidates[0]);
-      showToast('UUID を自動入力しました');
     } else {
-      openUuidModal(candidates);
+      // device と server をモジュールスコープに保持（切断しない）
+      bluetoothDevice = device;
+      bluetoothDevice.removeEventListener('gattserverdisconnected', onBtDisconnected);
+      bluetoothDevice.addEventListener('gattserverdisconnected', onBtDisconnected);
+
+      if (candidates.length === 1) {
+        finishScanConnect(candidates[0]);
+      } else {
+        openUuidModal(candidates);
+      }
     }
   } catch (err) {
     if (err.name !== 'NotFoundError') {
@@ -736,9 +771,15 @@ async function scanBtServices() {
   }
 }
 
-function applyUuidCandidate(candidate) {
+function finishScanConnect(candidate) {
   document.getElementById('btServiceUUID').value = candidate.serviceUUID;
   document.getElementById('btCharUUID').value    = candidate.charUUID;
+  gattCharacteristic = candidate.characteristic;
+  isConnected = true;
+  setBtStatus('connected', `接続済み: ${bluetoothDevice.name || '(名前なし)'}`);
+  document.getElementById('btConnectBtn').disabled = true;
+  document.getElementById('btDisconnectBtn').disabled = false;
+  showToast('UUID を自動入力して接続しました');
 }
 
 function openUuidModal(candidates) {
@@ -753,9 +794,8 @@ function openUuidModal(candidates) {
       <div class="cand-uuid">キャラクタリスティック: ${c.charUUID}</div>
       <div class="cand-props">プロパティ: ${c.propLabels.join(', ')}</div>`;
     div.addEventListener('click', () => {
-      applyUuidCandidate(c);
       closeUuidModal();
-      showToast('UUID を自動入力しました');
+      finishScanConnect(c);
     });
     list.appendChild(div);
   });
