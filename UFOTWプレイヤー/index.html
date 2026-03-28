@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UFOTW プレイヤー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  padding: 20px 16px 60px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  color: #e94560;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+h2 {
+  font-size: 1rem;
+  color: #e94560;
+  margin-bottom: 10px;
+}
+
+.panel {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* --- Bluetooth Panel --- */
+.bt-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bt-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #555;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.bt-dot.connected { background: #27ae60; box-shadow: 0 0 6px #27ae60; }
+.bt-dot.connecting { background: #f39c12; animation: pulse 1s infinite; }
+.bt-dot.error { background: #e74c3c; }
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.bt-label { font-size: 0.9rem; color: #aaa; flex: 1; }
+
+.bt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.form-group input, .form-group select {
+  background: #0f3460;
+  border: 1px solid #1a4a80;
+  border-radius: 6px;
+  color: #e0e0e0;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+/* --- Buttons --- */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary { background: #e94560; color: #fff; }
+.btn-success { background: #27ae60; color: #fff; }
+.btn-danger  { background: #c0392b; color: #fff; }
+.btn-secondary { background: #0f3460; color: #e0e0e0; border: 1px solid #1a4a80; }
+.btn:not(:disabled):hover { opacity: 0.85; }
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* --- Drop Zones --- */
+.drop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.drop-zone {
+  border: 2px dashed #0f3460;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  position: relative;
+}
+
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: #e94560;
+  background: rgba(233,69,96,0.07);
+}
+
+.drop-zone.loaded {
+  border-color: #27ae60;
+  border-style: solid;
+}
+
+.drop-zone .drop-icon { font-size: 2rem; margin-bottom: 6px; }
+.drop-zone .drop-label { font-size: 0.85rem; color: #aaa; }
+.drop-zone .drop-filename {
+  font-size: 0.8rem;
+  color: #27ae60;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* --- Waveform --- */
+#waveformCanvas {
+  width: 100%;
+  height: 80px;
+  border-radius: 6px;
+  background: #0a0f1e;
+  display: block;
+  cursor: pointer;
+}
+
+/* --- Pattern Graph --- */
+#patternCanvas {
+  width: 100%;
+  height: 100px;
+  border-radius: 6px;
+  background: #0a0f1e;
+  display: block;
+}
+
+/* --- Playback Controls --- */
+.playback-time {
+  text-align: center;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  color: #e0e0e0;
+  margin-bottom: 8px;
+}
+
+.playback-bar {
+  position: relative;
+  height: 6px;
+  background: #0f3460;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.playback-fill {
+  height: 100%;
+  background: #e94560;
+  border-radius: 3px;
+  width: 0%;
+  pointer-events: none;
+}
+
+.playback-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ctrl-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 2px solid #e94560;
+  background: transparent;
+  color: #e94560;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.ctrl-btn:hover { background: #e94560; color: #fff; }
+.ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.ctrl-btn.playing { background: #e94560; color: #fff; }
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.volume-row input[type="range"] {
+  flex: 1;
+  accent-color: #e94560;
+}
+
+/* --- Status Display --- */
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.status-card {
+  background: #0a0f1e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.status-card .card-label {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.status-card .card-value {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #e94560;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-card .card-value.green { color: #27ae60; }
+.status-card .card-value.blue  { color: #3498db; }
+
+/* --- Settings Panel --- */
+details summary {
+  cursor: pointer;
+  color: #e94560;
+  font-size: 0.9rem;
+  padding: 4px 0;
+  user-select: none;
+}
+
+details summary::-webkit-details-marker { color: #e94560; }
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* --- CSV Info --- */
+.csv-info {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 6px;
+}
+
+/* --- Toast --- */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #27ae60;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 9999;
+  max-width: 90vw;
+  text-align: center;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* --- Responsive --- */
+@media (max-width: 560px) {
+  .drop-grid, .bt-grid, .settings-grid { grid-template-columns: 1fr; }
+}
+
+.no-bt-warning {
+  background: rgba(231,76,60,0.15);
+  border: 1px solid #e74c3c;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #e74c3c;
+  margin-bottom: 10px;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<h1>UFOTW プレイヤー</h1>
+
+<!-- ===== Bluetooth Panel ===== -->
+<div class="panel">
+  <h2>Bluetooth 接続</h2>
+  <div id="noBtWarning" class="no-bt-warning">
+    ⚠ このブラウザは Web Bluetooth API に対応していません。Chrome（デスクトップ）をお使いください。
+  </div>
+  <div class="bt-status">
+    <div class="bt-dot" id="btDot"></div>
+    <span class="bt-label" id="btLabel">未接続</span>
+  </div>
+  <div class="bt-grid">
+    <div class="form-group">
+      <label>デバイス名フィルター（前方一致・空白で全検索）</label>
+      <input type="text" id="btNameFilter" placeholder="例: UFO" value="UFO">
+    </div>
+    <div class="form-group">
+      <label>サービス UUID</label>
+      <input type="text" id="btServiceUUID" value="0000fff0-0000-1000-8000-00805f9b34fb">
+    </div>
+    <div class="form-group">
+      <label>キャラクタリスティック UUID（書き込み）</label>
+      <input type="text" id="btCharUUID" value="0000fff1-0000-1000-8000-00805f9b34fb">
+    </div>
+    <div class="form-group">
+      <label>コマンドフォーマット</label>
+      <select id="cmdFormat">
+        <option value="lovense">Lovense互換（テキスト "Vibrate:XX;\r\n"）</option>
+        <option value="raw1" selected>1バイト（速度のみ 0x00-0xFF）</option>
+        <option value="raw2">2バイト [方向, 速度]</option>
+        <option value="raw4">4バイト [左Dir, 左速, 右Dir, 右速]</option>
+        <option value="kiiroo">Kiiroo互換 [0x01, speed, 0x00, 0x00]</option>
+      </select>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="btConnectBtn" onclick="connectBluetooth()">接続</button>
+    <button class="btn btn-danger" id="btDisconnectBtn" onclick="disconnectBluetooth()" disabled>切断</button>
+    <button class="btn btn-secondary" onclick="testCommand()">テスト送信</button>
+  </div>
+</div>
+
+<!-- ===== File Load Panel ===== -->
+<div class="panel">
+  <h2>ファイル読み込み</h2>
+  <div class="drop-grid">
+    <!-- Audio -->
+    <div class="drop-zone" id="audioDrop">
+      <input type="file" accept="audio/*" onchange="loadAudioFile(event)">
+      <div class="drop-icon">🎵</div>
+      <div class="drop-label">音声ファイルをドロップ<br>（mp3, wav, ogg...）</div>
+      <div class="drop-filename" id="audioFilename"></div>
+    </div>
+    <!-- CSV -->
+    <div class="drop-zone" id="csvDrop">
+      <input type="file" accept=".csv,.txt" onchange="loadCSVFile(event)">
+      <div class="drop-icon">📊</div>
+      <div class="drop-label">CSVファイルをドロップ<br>（UFOTW形式）</div>
+      <div class="drop-filename" id="csvFilename"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Pattern Preview ===== -->
+<div class="panel" id="patternPanel" style="display:none">
+  <h2>パターンプレビュー</h2>
+  <canvas id="patternCanvas"></canvas>
+  <div class="csv-info" id="csvInfo"></div>
+</div>
+
+<!-- ===== Playback Panel ===== -->
+<div class="panel">
+  <h2>再生</h2>
+  <canvas id="waveformCanvas"></canvas>
+  <div class="playback-bar" id="playbackBar" onclick="seekAudio(event)">
+    <div class="playback-fill" id="playbackFill"></div>
+  </div>
+  <div class="playback-time" id="playbackTime">0:00 / 0:00</div>
+  <div class="playback-controls">
+    <button class="ctrl-btn" id="stopBtn" onclick="stopPlayback()" disabled title="停止">⏹</button>
+    <button class="ctrl-btn" id="playBtn" onclick="togglePlayback()" disabled title="再生/一時停止">▶</button>
+  </div>
+  <div class="volume-row">
+    <span>🔊</span>
+    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value)">
+    <span id="volumeLabel">100%</span>
+  </div>
+  <audio id="audioElement" style="display:none"></audio>
+</div>
+
+<!-- ===== Live Status ===== -->
+<div class="panel">
+  <h2>送信ステータス</h2>
+  <div class="status-grid" id="statusGrid">
+    <div class="status-card">
+      <div class="card-label">現在時刻</div>
+      <div class="card-value" id="statTime">--</div>
+    </div>
+    <div class="status-card">
+      <div class="card-label">速度（左/単独）</div>
+      <div class="card-value green" id="statSpeedL">--</div>
+    </div>
+    <div class="status-card">
+      <div class="card-label">方向（左/単独）</div>
+      <div class="card-value blue" id="statDirL">--</div>
+    </div>
+    <div class="status-card" id="rightCard" style="display:none">
+      <div class="card-label">速度（右）</div>
+      <div class="card-value green" id="statSpeedR">--</div>
+    </div>
+    <div class="status-card" id="rightDirCard" style="display:none">
+      <div class="card-label">方向（右）</div>
+      <div class="card-value blue" id="statDirR">--</div>
+    </div>
+    <div class="status-card">
+      <div class="card-label">送信回数</div>
+      <div class="card-value" id="statCount">0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Advanced Settings ===== -->
+<div class="panel">
+  <details>
+    <summary>▶ 詳細設定</summary>
+    <div class="settings-grid">
+      <div class="form-group">
+        <label>送信間隔 (ms)</label>
+        <input type="number" id="sendInterval" value="100" min="50" max="1000" step="50">
+      </div>
+      <div class="form-group">
+        <label>補間方式</label>
+        <select id="interpMode">
+          <option value="linear" selected>線形補間</option>
+          <option value="step">ステップ（CSV値そのまま）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>停止時に速度 0 を送信</label>
+        <select id="sendZeroOnStop">
+          <option value="1" selected>はい</option>
+          <option value="0">いいえ</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>CSV終了後の動作</label>
+        <select id="afterCsvEnd">
+          <option value="zero" selected>速度 0 を送信し続ける</option>
+          <option value="stop">送信停止</option>
+          <option value="last">最終値を保持</option>
+        </select>
+      </div>
+    </div>
+  </details>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ===== State =====
+let bluetoothDevice = null;
+let gattCharacteristic = null;
+let isConnected = false;
+
+let audioEl = null;
+let audioCtx = null;
+let analyser = null;
+let sourceNode = null;
+let waveformRAF = null;
+
+let csvRows = []; // [{time(sec), direction, speed}] or [{time, leftDir, leftSpeed, rightDir, rightSpeed}]
+let csvFormat = 3;
+
+let commandTimer = null;
+let sendCount = 0;
+let isPlaying = false;
+
+// ===== Init =====
+window.addEventListener('DOMContentLoaded', () => {
+  audioEl = document.getElementById('audioElement');
+
+  if (!navigator.bluetooth) {
+    document.getElementById('noBtWarning').style.display = 'block';
+  }
+
+  setupDragDrop('audioDrop', 'audio/*', loadAudioFile);
+  setupDragDrop('csvDrop', '.csv,.txt', loadCSVFile);
+
+  audioEl.addEventListener('timeupdate', onTimeUpdate);
+  audioEl.addEventListener('ended', onAudioEnded);
+
+  drawWaveformEmpty();
+});
+
+// ===== Drag & Drop helpers =====
+function setupDragDrop(zoneId, accept, handler) {
+  const zone = document.getElementById(zoneId);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handler({ target: { files: [file] } });
+  });
+}
+
+// ===== Bluetooth =====
+async function connectBluetooth() {
+  if (!navigator.bluetooth) {
+    showToast('Web Bluetooth API 非対応のブラウザです', true);
+    return;
+  }
+  const nameFilter = document.getElementById('btNameFilter').value.trim();
+  const serviceUUID = document.getElementById('btServiceUUID').value.trim();
+  const charUUID    = document.getElementById('btCharUUID').value.trim();
+
+  setBtStatus('connecting', '接続中...');
+  try {
+    const filters = nameFilter
+      ? [{ namePrefix: nameFilter }]
+      : [{ services: [serviceUUID] }];
+
+    bluetoothDevice = await navigator.bluetooth.requestDevice({
+      filters,
+      optionalServices: [serviceUUID]
+    });
+
+    bluetoothDevice.addEventListener('gattserverdisconnected', onBtDisconnected);
+
+    const server  = await bluetoothDevice.gatt.connect();
+    const service = await server.getPrimaryService(serviceUUID);
+    gattCharacteristic = await service.getCharacteristic(charUUID);
+
+    isConnected = true;
+    setBtStatus('connected', `接続済み: ${bluetoothDevice.name || '(名前なし)'}`);
+    document.getElementById('btConnectBtn').disabled = true;
+    document.getElementById('btDisconnectBtn').disabled = false;
+    showToast('Bluetooth 接続しました');
+  } catch (err) {
+    setBtStatus('error', `接続失敗: ${err.message}`);
+    showToast(`接続失敗: ${err.message}`, true);
+  }
+}
+
+function disconnectBluetooth() {
+  if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+    bluetoothDevice.gatt.disconnect();
+  }
+  onBtDisconnected();
+}
+
+function onBtDisconnected() {
+  isConnected = false;
+  gattCharacteristic = null;
+  setBtStatus('', '未接続');
+  document.getElementById('btConnectBtn').disabled = false;
+  document.getElementById('btDisconnectBtn').disabled = true;
+  showToast('Bluetooth 切断されました');
+}
+
+function setBtStatus(state, label) {
+  const dot = document.getElementById('btDot');
+  dot.className = 'bt-dot' + (state ? ' ' + state : '');
+  document.getElementById('btLabel').textContent = label;
+}
+
+async function testCommand() {
+  if (!isConnected) { showToast('未接続です', true); return; }
+  try {
+    if (csvFormat === 5) {
+      await sendRawCommand(0, 50, 0, 50);
+    } else {
+      await sendRawCommand(0, 50);
+    }
+    showToast('テスト送信しました（速度50）');
+    setTimeout(() => {
+      if (csvFormat === 5) sendRawCommand(0, 0, 0, 0);
+      else sendRawCommand(0, 0);
+    }, 1000);
+  } catch (err) {
+    showToast(`送信失敗: ${err.message}`, true);
+  }
+}
+
+// ===== Command Building =====
+function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
+  const fmt = document.getElementById('cmdFormat').value;
+  speed = Math.round(Math.min(100, Math.max(0, speed)));
+  const speedByte = Math.round(speed * 2.55); // 0-100 → 0-255
+
+  switch (fmt) {
+    case 'lovense': {
+      const text = `Vibrate:${speed};\r\n`;
+      return new TextEncoder().encode(text);
+    }
+    case 'raw1':
+      return new Uint8Array([speedByte]);
+    case 'raw2':
+      return new Uint8Array([dir & 0x01, speedByte]);
+    case 'raw4': {
+      const rs  = Math.round(Math.min(100, Math.max(0, rightSpeed || 0)) * 2.55);
+      return new Uint8Array([(dir & 0x01), speedByte, ((rightDir || 0) & 0x01), rs]);
+    }
+    case 'kiiroo':
+      return new Uint8Array([0x01, speedByte, 0x00, 0x00]);
+    default:
+      return new Uint8Array([speedByte]);
+  }
+}
+
+async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
+  if (!gattCharacteristic) return;
+  const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
+  await gattCharacteristic.writeValueWithoutResponse(bytes);
+}
+
+// ===== CSV =====
+function loadCSVFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      parseCSV(e.target.result);
+      document.getElementById('csvFilename').textContent = file.name;
+      document.getElementById('csvDrop').classList.add('loaded');
+      document.getElementById('patternPanel').style.display = 'block';
+      drawPattern();
+      showToast(`CSV 読み込み完了: ${csvRows.length}行`);
+    } catch (err) {
+      showToast(`CSV 解析失敗: ${err.message}`, true);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
+  if (lines.length === 0) throw new Error('空のCSVです');
+
+  const firstCols = lines[0].split(',').length;
+  csvFormat = firstCols >= 5 ? 5 : 3;
+
+  csvRows = lines.map(line => {
+    const c = line.split(',').map(s => s.trim());
+    const t = (parseFloat(c[0]) || 0) / 10; // 1/10秒 → 秒
+    if (csvFormat === 5) {
+      return {
+        time: t,
+        leftDir:   parseInt(c[1]) || 0,
+        leftSpeed: clamp(parseInt(c[2]) || 0, 0, 100),
+        rightDir:  parseInt(c[3]) || 0,
+        rightSpeed: clamp(parseInt(c[4]) || 0, 0, 100),
+      };
+    } else {
+      return {
+        time:      t,
+        direction: parseInt(c[1]) || 0,
+        speed:     clamp(parseInt(c[2]) || 0, 0, 100),
+      };
+    }
+  }).sort((a, b) => a.time - b.time);
+
+  // Show/hide right channel cards
+  document.getElementById('rightCard').style.display = csvFormat === 5 ? '' : 'none';
+  document.getElementById('rightDirCard').style.display = csvFormat === 5 ? '' : 'none';
+
+  const maxT = csvRows[csvRows.length - 1]?.time || 0;
+  document.getElementById('csvInfo').textContent =
+    `フォーマット: ${csvFormat}列 | 行数: ${csvRows.length} | 最大時刻: ${maxT.toFixed(1)}秒`;
+}
+
+function getValuesAtTime(t) {
+  if (csvRows.length === 0) return null;
+
+  const interp = document.getElementById('interpMode').value;
+  const afterEnd = document.getElementById('afterCsvEnd').value;
+
+  // Before first row
+  if (t < csvRows[0].time) return makeZeroRow();
+
+  // After last row
+  if (t >= csvRows[csvRows.length - 1].time) {
+    if (afterEnd === 'zero') return makeZeroRow();
+    if (afterEnd === 'last') return csvRows[csvRows.length - 1];
+    return null; // stop
+  }
+
+  // Find surrounding
+  let lo = 0;
+  for (let i = 0; i < csvRows.length - 1; i++) {
+    if (csvRows[i].time <= t && csvRows[i + 1].time > t) { lo = i; break; }
+  }
+  const prev = csvRows[lo];
+  const next = csvRows[lo + 1];
+
+  if (interp === 'step') return prev;
+
+  const ratio = (t - prev.time) / (next.time - prev.time);
+  if (csvFormat === 5) {
+    return {
+      time: t,
+      leftDir:    prev.leftDir,
+      leftSpeed:  Math.round(lerp(prev.leftSpeed,  next.leftSpeed,  ratio)),
+      rightDir:   prev.rightDir,
+      rightSpeed: Math.round(lerp(prev.rightSpeed, next.rightSpeed, ratio)),
+    };
+  } else {
+    return {
+      time: t,
+      direction: prev.direction,
+      speed: Math.round(lerp(prev.speed, next.speed, ratio)),
+    };
+  }
+}
+
+function makeZeroRow() {
+  if (csvFormat === 5) {
+    return { time: 0, leftDir: 0, leftSpeed: 0, rightDir: 0, rightSpeed: 0 };
+  }
+  return { time: 0, direction: 0, speed: 0 };
+}
+
+// ===== Audio =====
+function loadAudioFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+  audioEl.src = url;
+  audioEl.load();
+
+  document.getElementById('audioFilename').textContent = file.name;
+  document.getElementById('audioDrop').classList.add('loaded');
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = false;
+
+  // Setup AudioContext for waveform
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  const reader = new FileReader();
+  reader.onload = async e => {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
+    drawWaveform(decoded);
+  };
+  reader.readAsArrayBuffer(file);
+
+  showToast(`音声ファイル読み込み: ${file.name}`);
+  event.target.value = '';
+}
+
+function togglePlayback() {
+  if (!audioEl.src) { showToast('音声ファイルを読み込んでください', true); return; }
+  if (isPlaying) {
+    audioEl.pause();
+    stopCommandTimer();
+    isPlaying = false;
+    document.getElementById('playBtn').classList.remove('playing');
+    document.getElementById('playBtn').textContent = '▶';
+  } else {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    audioEl.play();
+    startCommandTimer();
+    isPlaying = true;
+    document.getElementById('playBtn').classList.add('playing');
+    document.getElementById('playBtn').textContent = '⏸';
+  }
+}
+
+function stopPlayback() {
+  audioEl.pause();
+  audioEl.currentTime = 0;
+  stopCommandTimer();
+  isPlaying = false;
+  document.getElementById('playBtn').classList.remove('playing');
+  document.getElementById('playBtn').textContent = '▶';
+  updatePlaybackUI(0);
+
+  if (document.getElementById('sendZeroOnStop').value === '1' && isConnected) {
+    sendRawCommand(0, 0, 0, 0).catch(() => {});
+  }
+  clearStatusDisplay();
+}
+
+function onAudioEnded() {
+  stopPlayback();
+}
+
+function onTimeUpdate() {
+  if (!audioEl) return;
+  updatePlaybackUI(audioEl.currentTime);
+}
+
+function updatePlaybackUI(t) {
+  const total = audioEl.duration || 0;
+  document.getElementById('playbackFill').style.width = total > 0 ? `${(t / total) * 100}%` : '0%';
+  document.getElementById('playbackTime').textContent = `${formatTime(t)} / ${formatTime(total)}`;
+}
+
+function seekAudio(e) {
+  if (!audioEl.duration) return;
+  const bar = document.getElementById('playbackBar');
+  const ratio = (e.clientX - bar.getBoundingClientRect().left) / bar.offsetWidth;
+  audioEl.currentTime = ratio * audioEl.duration;
+}
+
+function setVolume(v) {
+  audioEl.volume = v;
+  document.getElementById('volumeLabel').textContent = `${Math.round(v * 100)}%`;
+}
+
+// ===== Command Timer =====
+function startCommandTimer() {
+  stopCommandTimer();
+  const interval = parseInt(document.getElementById('sendInterval').value) || 100;
+  commandTimer = setInterval(async () => {
+    if (!isPlaying) return;
+    const t = audioEl.currentTime;
+    const vals = getValuesAtTime(t);
+    if (vals === null) return; // 'stop' mode after CSV end
+
+    updateStatusDisplay(t, vals);
+
+    if (!isConnected) return;
+    try {
+      if (csvFormat === 5) {
+        await sendRawCommand(vals.leftDir, vals.leftSpeed, vals.rightDir, vals.rightSpeed);
+      } else {
+        await sendRawCommand(vals.direction, vals.speed);
+      }
+      sendCount++;
+      document.getElementById('statCount').textContent = sendCount;
+    } catch (err) {
+      // Silent: device may have disconnected
+    }
+  }, interval);
+}
+
+function stopCommandTimer() {
+  if (commandTimer) { clearInterval(commandTimer); commandTimer = null; }
+}
+
+// ===== Status Display =====
+function updateStatusDisplay(t, vals) {
+  document.getElementById('statTime').textContent = formatTime(t);
+  if (csvFormat === 5) {
+    document.getElementById('statSpeedL').textContent = vals.leftSpeed;
+    document.getElementById('statDirL').textContent   = vals.leftDir ? '逆転' : '正転';
+    document.getElementById('statSpeedR').textContent = vals.rightSpeed;
+    document.getElementById('statDirR').textContent   = vals.rightDir ? '逆転' : '正転';
+  } else {
+    document.getElementById('statSpeedL').textContent = vals.speed;
+    document.getElementById('statDirL').textContent   = vals.direction ? '逆転' : '正転';
+  }
+}
+
+function clearStatusDisplay() {
+  ['statTime','statSpeedL','statDirL','statSpeedR','statDirR'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '--';
+  });
+}
+
+// ===== Waveform Drawing =====
+function drawWaveformEmpty() {
+  const canvas = document.getElementById('waveformCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 800;
+  canvas.height = 80;
+  ctx.fillStyle = '#0a0f1e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#0f3460';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, canvas.height / 2);
+  ctx.lineTo(canvas.width, canvas.height / 2);
+  ctx.stroke();
+}
+
+function drawWaveform(audioBuffer) {
+  const canvas = document.getElementById('waveformCanvas');
+  canvas.width = canvas.offsetWidth || 800;
+  canvas.height = 80;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.fillStyle = '#0a0f1e';
+  ctx.fillRect(0, 0, W, H);
+
+  const data = audioBuffer.getChannelData(0);
+  const step = Math.ceil(data.length / W);
+  const half = H / 2;
+
+  ctx.strokeStyle = '#e94560';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x < W; x++) {
+    let min = 1, max = -1;
+    for (let j = 0; j < step; j++) {
+      const v = data[x * step + j] || 0;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    ctx.moveTo(x, half + min * half);
+    ctx.lineTo(x, half + max * half);
+  }
+  ctx.stroke();
+}
+
+// ===== Pattern Graph Drawing =====
+function drawPattern() {
+  if (csvRows.length === 0) return;
+  const canvas = document.getElementById('patternCanvas');
+  canvas.width = canvas.offsetWidth || 800;
+  canvas.height = 100;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const maxT = csvRows[csvRows.length - 1].time;
+
+  ctx.fillStyle = '#0a0f1e';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#0f3460';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (H / 4) * i;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  function plotLine(getVal, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    csvRows.forEach((row, i) => {
+      const x = maxT > 0 ? (row.time / maxT) * W : 0;
+      const y = H - (getVal(row) / 100) * H;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  if (csvFormat === 5) {
+    plotLine(r => r.leftSpeed,  '#e94560');
+    plotLine(r => r.rightSpeed, '#3498db');
+    // Legend
+    ctx.fillStyle = '#e94560'; ctx.fillRect(W - 80, 4, 12, 4);
+    ctx.fillStyle = '#aaa'; ctx.font = '11px sans-serif'; ctx.fillText('左', W - 64, 11);
+    ctx.fillStyle = '#3498db'; ctx.fillRect(W - 80, 14, 12, 4);
+    ctx.fillStyle = '#aaa'; ctx.fillText('右', W - 64, 21);
+  } else {
+    plotLine(r => r.speed, '#e94560');
+  }
+}
+
+// ===== Utilities =====
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function formatTime(sec) {
+  if (!isFinite(sec)) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#c0392b' : '#27ae60';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Redraw canvases on resize
+window.addEventListener('resize', () => {
+  drawWaveformEmpty();
+  if (csvRows.length > 0) drawPattern();
+});
+</script>
+</body>
+</html>
