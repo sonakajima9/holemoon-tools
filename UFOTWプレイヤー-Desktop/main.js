@@ -1,9 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron');
 const path = require('path');
 const fs   = require('fs');
-const { pathToFileURL } = require('url');
 
 // ===== local:// カスタムプロトコル =====
 // app.whenReady() より前に呼び出す必要がある
@@ -56,10 +55,10 @@ function createMainWindow() {
 
     if (pickerWindow && !pickerWindow.isDestroyed()) {
       pickerWindow.webContents.send('bluetooth-devices', deviceList);
-    } else if (deviceList.length > 0) {
+    } else {
+      // deviceList が空でも即座にピッカーを開く（スキャン中表示＋キャンセル手段を確保）
       openDevicePicker(deviceList);
     }
-    // deviceList が空の場合はスキャン継続（ピッカーは開かない）
   });
 
   // ドラッグ&ドロップで音声ファイルをウィンドウ外に落としたとき
@@ -205,18 +204,64 @@ ipcMain.handle('dialog:showOpenJson', async () => {
 
 // ===== アプリ起動 =====
 app.whenReady().then(() => {
-  // local:// スキームでローカルファイルを提供
-  // パスは base64url エンコードされて渡される（日本語・特殊文字も安全）
-  protocol.handle('local', (request) => {
-    const url = new URL(request.url);
-    // pathname の先頭スラッシュを除去して base64url をデコード
-    let b64 = url.pathname.slice(1).replace(/-/g, '+').replace(/_/g, '/');
-    while (b64.length % 4) b64 += '=';
-    const filePath = Buffer.from(b64, 'base64').toString('utf-8');
-    // Range ヘッダーをそのまま転送してシーク（部分取得）に対応
-    return net.fetch(pathToFileURL(filePath).href, {
-      headers: request.headers,
-    });
+  // local:// プロトコルハンドラ
+  // net.fetch 委譲では Range リクエストが正しく処理されず音声シークが壊れるため
+  // fs で直接読み出して 206 Partial Content を自前で返す
+  protocol.handle('local', async (request) => {
+    try {
+      const url = new URL(request.url);
+      let b64 = url.pathname.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const filePath = Buffer.from(b64, 'base64').toString('utf-8');
+
+      const stat = await fs.promises.stat(filePath);
+      const total = stat.size;
+
+      const MIME = {
+        '.mp3': 'audio/mpeg', '.wav': 'audio/wav',  '.ogg': 'audio/ogg',
+        '.flac': 'audio/flac', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
+        '.wma': 'audio/x-ms-wma',
+      };
+      const contentType = MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+
+      const rangeHeader = request.headers.get('range');
+      if (rangeHeader) {
+        const match = /bytes=(\d+)-(\d*)/.exec(rangeHeader);
+        if (match) {
+          const start    = parseInt(match[1], 10);
+          const end      = match[2] ? Math.min(parseInt(match[2], 10), total - 1) : total - 1;
+          const chunkLen = end - start + 1;
+
+          const buf = Buffer.allocUnsafe(chunkLen);
+          const fh  = await fs.promises.open(filePath, 'r');
+          await fh.read(buf, 0, chunkLen, start);
+          await fh.close();
+
+          return new Response(buf, {
+            status: 206,
+            headers: {
+              'Content-Type':   contentType,
+              'Content-Range':  `bytes ${start}-${end}/${total}`,
+              'Content-Length': String(chunkLen),
+              'Accept-Ranges':  'bytes',
+            },
+          });
+        }
+      }
+
+      // Range なし — ファイル全体を返す
+      const buf = await fs.promises.readFile(filePath);
+      return new Response(buf, {
+        status: 200,
+        headers: {
+          'Content-Type':   contentType,
+          'Content-Length': String(total),
+          'Accept-Ranges':  'bytes',
+        },
+      });
+    } catch (err) {
+      return new Response(`Not found: ${err.message}`, { status: 404 });
+    }
   });
 
   createMainWindow();

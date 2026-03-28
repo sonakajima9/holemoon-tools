@@ -41,6 +41,8 @@ let csvFormat = 3;
 
 let commandTimer = null;
 let testStopTimer = null;
+let scanTimeoutId = null;
+const SCAN_TIMEOUT_MS = 60000; // 60秒でスキャン中断
 let sendCount = 0;
 let isPlaying = false;
 
@@ -192,6 +194,13 @@ async function connectBluetooth() {
 
   setBtStatus('connecting', '接続中...');
   document.getElementById('btConnectBtn').disabled = true;
+
+  // スキャンが応答しない場合の安全網：SCAN_TIMEOUT_MS 後にキャンセルして UI を回復
+  scanTimeoutId = setTimeout(() => {
+    scanTimeoutId = null;
+    if (window.electronAPI?.cancelScan) window.electronAPI.cancelScan();
+  }, SCAN_TIMEOUT_MS);
+
   try {
     const { customSvcUUID } = getCustomUUIDs();
     const optionalServices = customSvcUUID
@@ -204,6 +213,10 @@ async function connectBluetooth() {
       acceptAllDevices: !nameFilter,
       optionalServices,
     });
+
+    // デバイス選択成功 → タイムアウトを解除
+    clearTimeout(scanTimeoutId);
+    scanTimeoutId = null;
 
     device.removeEventListener('gattserverdisconnected', onBtDisconnected);
     device.addEventListener('gattserverdisconnected', onBtDisconnected);
@@ -240,16 +253,22 @@ async function connectBluetooth() {
     document.getElementById('btDisconnectBtn').disabled = false;
     showToast('Bluetooth 接続しました');
   } catch (err) {
+    clearTimeout(scanTimeoutId);
+    scanTimeoutId = null;
     document.getElementById('btConnectBtn').disabled = false;
     bluetoothDevice = null;
-    if (err.name !== 'NotFoundError') {
+    if (err.name === 'NotFoundError') {
+      // キャンセルまたはタイムアウト
+      setBtStatus('', '未接続');
+      if (err.message && !err.message.includes('cancelled')) {
+        showToast('デバイスが見つかりませんでした。デバイスの電源とBLEアダプターを確認してください。', true);
+      }
+    } else {
       const detail = err.name === 'NetworkError'
         ? 'デバイスとの通信に失敗しました。デバイスが近くにあるか確認してください'
         : `${err.name}: ${err.message}`;
       setBtStatus('error', `接続失敗: ${detail}`);
       showToast(`接続失敗: ${detail}`, true);
-    } else {
-      setBtStatus('', '未接続');
     }
   }
 }
@@ -433,12 +452,24 @@ async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
   const writeMode = document.getElementById('writeModeSelect')?.value || 'response';
 
-  if (writeMode === 'withoutResponse' && gattCharacteristic.properties.writeWithoutResponse) {
-    await gattCharacteristic.writeValueWithoutResponse(bytes);
-  } else if (gattCharacteristic.properties.write) {
-    await gattCharacteristic.writeValueWithResponse(bytes);
-  } else if (gattCharacteristic.properties.writeWithoutResponse) {
-    await gattCharacteristic.writeValueWithoutResponse(bytes);
+  // properties.* の報告が不正確な場合（Electron の Web Bluetooth 実装の既知の問題）に備え、
+  // 実際に書き込みを試みて失敗したら自動的にもう一方のメソッドへフォールバックする。
+  // UFO TW は BLE 仕様上 "Write Without Response" タイプだが、properties.write が
+  // true と誤報告されて writeValueWithResponse を呼ぶと DOMException が飛ぶケースがあった。
+  if (writeMode === 'withoutResponse') {
+    try {
+      await gattCharacteristic.writeValueWithoutResponse(bytes);
+    } catch (_) {
+      // withoutResponse が使えない場合は response にフォールバック
+      await gattCharacteristic.writeValueWithResponse(bytes);
+    }
+  } else {
+    try {
+      await gattCharacteristic.writeValueWithResponse(bytes);
+    } catch (_) {
+      // response が失敗（UFO TW など writeWithoutResponse 専用デバイス）は withoutResponse へフォールバック
+      await gattCharacteristic.writeValueWithoutResponse(bytes);
+    }
   }
 }
 

@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeTextFile:     (filePath, content) => ipcRenderer.invoke('fs:writeText', filePath, content),
   showSaveDialog:    (defaultPath)  => ipcRenderer.invoke('dialog:showSave',     defaultPath),
   showOpenJsonDialog: ()            => ipcRenderer.invoke('dialog:showOpenJson'),
+  cancelScan:        ()             => ipcRenderer.send('bluetooth-cancel'),
 });
