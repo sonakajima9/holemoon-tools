@@ -596,6 +596,15 @@ function setupDragDrop(zoneId, accept, handler) {
 }
 
 // ===== Bluetooth =====
+function connectGattWithTimeout(gatt, ms = 10000) {
+  return Promise.race([
+    gatt.connect(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(Object.assign(new Error('接続タイムアウト（10秒）'), { name: 'TimeoutError' })), ms)
+    )
+  ]);
+}
+
 async function connectBluetooth() {
   if (!navigator.bluetooth) {
     showToast('Web Bluetooth API 非対応のブラウザです', true);
@@ -606,9 +615,10 @@ async function connectBluetooth() {
   const charUUID    = document.getElementById('btCharUUID').value.trim();
 
   setBtStatus('connecting', '接続中...');
+  document.getElementById('btConnectBtn').disabled = true;
   try {
     const filters = nameFilter
-      ? [{ namePrefix: nameFilter }]
+      ? [{ namePrefix: nameFilter, services: [serviceUUID] }]
       : [{ services: [serviceUUID] }];
 
     bluetoothDevice = await navigator.bluetooth.requestDevice({
@@ -620,7 +630,7 @@ async function connectBluetooth() {
     bluetoothDevice.removeEventListener('gattserverdisconnected', onBtDisconnected);
     bluetoothDevice.addEventListener('gattserverdisconnected', onBtDisconnected);
 
-    const server  = await bluetoothDevice.gatt.connect();
+    const server  = await connectGattWithTimeout(bluetoothDevice.gatt);
     const service = await server.getPrimaryService(serviceUUID);
     gattCharacteristic = await service.getCharacteristic(charUUID);
 
@@ -630,8 +640,18 @@ async function connectBluetooth() {
     document.getElementById('btDisconnectBtn').disabled = false;
     showToast('Bluetooth 接続しました');
   } catch (err) {
-    setBtStatus('error', `接続失敗: ${err.message}`);
-    showToast(`接続失敗: ${err.message}`, true);
+    document.getElementById('btConnectBtn').disabled = false;
+    bluetoothDevice = null;
+    let detail = '';
+    if (err.name === 'NotFoundError') {
+      detail = 'サービスUUIDまたはキャラクタリスティックUUIDがデバイスと一致していません';
+    } else if (err.name === 'NetworkError') {
+      detail = 'デバイスとの通信に失敗しました。デバイスが近くにあるか確認してください';
+    } else {
+      detail = `${err.name}: ${err.message}`;
+    }
+    setBtStatus('error', `接続失敗: ${detail}`);
+    showToast(`接続失敗: ${detail}`, true);
   }
 }
 
@@ -687,7 +707,7 @@ async function attemptReconnect() {
   const serviceUUID = document.getElementById('btServiceUUID').value.trim();
   const charUUID    = document.getElementById('btCharUUID').value.trim();
   try {
-    const server  = await bluetoothDevice.gatt.connect();
+    const server  = await connectGattWithTimeout(bluetoothDevice.gatt);
     const service = await server.getPrimaryService(serviceUUID);
     gattCharacteristic = await service.getCharacteristic(charUUID);
     isConnected = true;
@@ -754,7 +774,11 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
 async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   if (!gattCharacteristic) return;
   const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
-  await gattCharacteristic.writeValueWithoutResponse(bytes);
+  if (gattCharacteristic.properties.writeWithoutResponse) {
+    await gattCharacteristic.writeValueWithoutResponse(bytes);
+  } else {
+    await gattCharacteristic.writeValue(bytes);
+  }
 }
 
 // ===== CSV =====
