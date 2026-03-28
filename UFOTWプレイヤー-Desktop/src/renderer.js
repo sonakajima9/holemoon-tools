@@ -350,6 +350,20 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
   const speedByte = Math.round(speed * 2.55); // 0-100 → 0-255
 
   switch (fmt) {
+    case 'vorze_tw': {
+      // UFO TW / UFO SA: [0x01, leftByte, rightByte]
+      // 各バイト: (direction << 7) | speed(0-100)
+      const rs = Math.round(Math.min(100, Math.max(0, rightSpeed || 0)));
+      const leftByte  = ((dir & 0x01) << 7) | speed;
+      const rightByte = (((rightDir || 0) & 0x01) << 7) | rs;
+      return new Uint8Array([0x01, leftByte, rightByte]);
+    }
+    case 'vorze_sa': {
+      // A10 Cyclone SA / Piston: [0x01, motorByte]
+      // motorByte: (direction << 7) | speed(0-100)
+      const motorByte = ((dir & 0x01) << 7) | speed;
+      return new Uint8Array([0x01, motorByte]);
+    }
     case 'lovense': {
       const text = `Vibrate:${speed};\r\n`;
       return new TextEncoder().encode(text);

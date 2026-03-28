@@ -28,8 +28,10 @@
     <div class="form-group">
       <label>コマンドフォーマット</label>
       <select id="cmdFormat">
+        <option value="vorze_tw" selected>Vorze UFO TW / UFO SA（3バイト: 0x01, 左(Dir«7|Speed), 右(Dir«7|Speed)）</option>
+        <option value="vorze_sa">Vorze A10 Cyclone SA / Piston（2バイト: 0x01, Dir«7|Speed）</option>
         <option value="lovense">Lovense互換（テキスト "Vibrate:XX;\r\n"）</option>
-        <option value="raw1" selected>1バイト（速度のみ 0x00-0xFF）</option>
+        <option value="raw1">1バイト（速度のみ 0x00-0xFF）</option>
         <option value="raw2">2バイト [方向, 速度]</option>
         <option value="raw4">4バイト [左Dir, 左速, 右Dir, 右速]</option>
         <option value="kiiroo">Kiiroo互換 [0x01, speed, 0x00, 0x00]</option>
