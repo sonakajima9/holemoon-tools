@@ -40,6 +40,7 @@ let csvRows = []; // [{time(sec), direction, speed}] or [{time, leftDir, leftSpe
 let csvFormat = 3;
 
 let commandTimer = null;
+let testStopTimer = null;
 let sendCount = 0;
 let isPlaying = false;
 
@@ -325,30 +326,51 @@ function setBtStatus(state, label) {
 async function testCommand() {
   if (!isConnected) { showToast('未接続です', true); return; }
 
-  const target = document.getElementById('testTarget').value; // 'both' | 'left' | 'right'
-  const dir    = parseInt(document.getElementById('testDir').value) || 0; // 0=正転, 1=逆転
-  const speed  = clamp(parseInt(document.getElementById('testSpeed').value) || 50, 0, 100);
+  const target  = document.getElementById('testTarget').value; // 'both' | 'left' | 'right'
+  const dir     = parseInt(document.getElementById('testDir').value) || 0; // 0=正転, 1=逆転
+  const speed   = clamp(parseInt(document.getElementById('testSpeed').value) || 50, 0, 100);
+  const fmt     = document.getElementById('cmdFormat').value;
+  const isDual  = (fmt === 'vorze_tw' || fmt === 'raw4'); // デュアルモーター判定はデバイス種別で行う
 
-  const dirLabel   = dir ? '逆転' : '正転';
+  const dirLabel    = dir ? '逆転' : '正転';
   const targetLabel = target === 'both' ? '両方' : target === 'left' ? '左' : '右';
 
+  // 前回のテスト停止タイマーをクリア
+  if (testStopTimer) { clearTimeout(testStopTimer); testStopTimer = null; }
+
   try {
-    if (csvFormat === 5) {
+    if (isDual) {
       const lSpeed = target !== 'right' ? speed : 0;
       const rSpeed = target !== 'left'  ? speed : 0;
       const lDir   = target !== 'right' ? dir   : 0;
       const rDir   = target !== 'left'  ? dir   : 0;
       await sendRawCommand(lDir, lSpeed, rDir, rSpeed);
       showToast(`テスト送信（対象:${targetLabel} 方向:${dirLabel} 速度:${speed}）`);
-      setTimeout(() => sendRawCommand(0, 0, 0, 0), 1000);
+      document.getElementById('testStopBtn').disabled = false;
+      testStopTimer = setTimeout(() => stopTestCommand(), 1000);
     } else {
       await sendRawCommand(dir, speed);
       showToast(`テスト送信（方向:${dirLabel} 速度:${speed}）`);
-      setTimeout(() => sendRawCommand(0, 0), 1000);
+      document.getElementById('testStopBtn').disabled = false;
+      testStopTimer = setTimeout(() => stopTestCommand(), 1000);
     }
   } catch (err) {
     showToast(`送信失敗: ${err.message}`, true);
   }
+}
+
+async function stopTestCommand() {
+  if (testStopTimer) { clearTimeout(testStopTimer); testStopTimer = null; }
+  document.getElementById('testStopBtn').disabled = true;
+  if (!isConnected) return;
+  try {
+    const fmt = document.getElementById('cmdFormat').value;
+    if (fmt === 'vorze_tw' || fmt === 'raw4') {
+      await sendRawCommand(0, 0, 0, 0);
+    } else {
+      await sendRawCommand(0, 0);
+    }
+  } catch (_) {}
 }
 
 // ===== Command Building =====
