@@ -229,6 +229,122 @@ canvas#timelineCanvas { display: block; }
   .template-save-row { flex-direction: column; }
   .apply-select { flex-direction: column; }
 }
+
+/* ---- Editable text in segments table ---- */
+.seg-text-input {
+  background: transparent; border: 1px solid #333; border-radius: 4px;
+  color: #e0e0e0; padding: 3px 6px; width: 100%; min-width: 120px; font-size: 0.82rem;
+  font-family: inherit;
+}
+.seg-text-input:focus { outline: none; border-color: #e94560; background: #0f3460; }
+
+/* ---- Transcription controls ---- */
+.transcribe-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.transcribe-status { font-size: 0.82rem; color: #888; }
+.transcribe-status.active { color: #27ae60; }
+.transcribe-status.error { color: #c0392b; }
+
+/* ---- Analysis cards (fixed CSS) ---- */
+.analysis-card, .match-card {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px; padding: 12px;
+  transition: border-color 0.2s; margin-bottom: 8px;
+}
+.analysis-card:hover, .match-card:hover { border-color: #e94560; }
+.analysis-card .card-header, .match-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.analysis-card .seg-num, .match-card .seg-num { color: #e94560; font-weight: 600; font-size: 0.9rem; }
+.analysis-card .card-body, .match-card .card-body { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.83rem; }
+.analysis-card .info-col, .match-card .info-col { display: flex; flex-direction: column; gap: 3px; }
+.analysis-card .info-label, .match-card .info-label { color: #666; font-size: 0.75rem; }
+.analysis-card .info-value, .match-card .info-value { color: #e0e0e0; font-family: 'Consolas', monospace; }
+.speech-text-value { color: #b0c4de !important; font-style: italic; font-family: inherit !important; word-break: break-all; }
+
+/* ---- Analysis summary table ---- */
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 8px; }
+.summary-table th { background: #0f3460; color: #e94560; padding: 6px 10px; text-align: left; }
+.summary-table td { padding: 5px 10px; border-bottom: 1px solid #0f3460; }
+
+/* ---- Database section ---- */
+.db-list {
+  max-height: 280px; overflow-y: auto; border: 1px solid #0f3460; border-radius: 8px;
+  margin-bottom: 12px;
+}
+.db-list::-webkit-scrollbar { width: 6px; }
+.db-list::-webkit-scrollbar-track { background: #16213e; }
+.db-list::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+.db-item {
+  padding: 10px 12px; border-bottom: 1px solid #0f3460;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: background 0.15s;
+}
+.db-item:last-child { border-bottom: none; }
+.db-item:hover { background: rgba(233, 69, 96, 0.08); }
+.db-item .db-info { display: flex; flex-direction: column; gap: 2px; }
+.db-item .db-name { font-size: 0.88rem; color: #e0e0e0; }
+.db-item .db-meta { font-size: 0.73rem; color: #666; }
+.db-item .db-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.db-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px; margin-bottom: 12px;
+}
+.db-stat { background: #0d0d1a; border: 1px solid #0f3460; border-radius: 6px; padding: 8px; text-align: center; }
+.db-stat .db-stat-value { font-size: 1.2rem; color: #e94560; font-weight: 700; font-family: 'Consolas', monospace; }
+.db-stat .db-stat-label { font-size: 0.72rem; color: #888; margin-top: 2px; }
+.db-entry-detail {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 12px; margin-bottom: 12px; display: none;
+}
+.db-entry-detail.active { display: block; }
+.db-entry-detail pre { color: #a0d0a0; font-family: 'Consolas', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+
+/* ---- Content-based generation ---- */
+.content-gen-area {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 12px; margin-bottom: 12px;
+}
+.content-gen-area label { font-size: 0.82rem; color: #888; display: block; margin-bottom: 6px; }
+.content-gen-area textarea {
+  width: 100%; min-height: 90px; background: #16213e; border: 1px solid #333;
+  border-radius: 6px; color: #e0e0e0; padding: 8px; font-size: 0.85rem;
+  font-family: inherit; resize: vertical; line-height: 1.5;
+}
+.content-gen-area textarea:focus { outline: none; border-color: #e94560; }
+.content-pattern-map {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 12px; margin-bottom: 12px; max-height: 200px; overflow-y: auto;
+  display: none;
+}
+.content-pattern-map.active { display: block; }
+.keyword-row { display: flex; gap: 8px; margin-bottom: 5px; align-items: center; flex-wrap: wrap; font-size: 0.82rem; }
+.keyword-tag { background: #0f3460; border-radius: 4px; padding: 2px 8px; color: #b0c4de; }
+.keyword-pattern { color: #e94560; }
+.section-divider { border: none; border-top: 1px solid #0f3460; margin: 16px 0; }
+
+/* ---- Whisper transcription section ---- */
+.whisper-section {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 14px; margin-bottom: 12px;
+}
+.whisper-section h3 { font-size: 0.92rem; color: #e94560; margin-bottom: 10px; }
+.whisper-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.whisper-controls select {
+  flex: 1; min-width: 220px; padding: 7px 10px; border: 1px solid #0f3460;
+  border-radius: 6px; background: #16213e; color: #e0e0e0; font-size: 0.83rem;
+  appearance: auto;
+}
+.whisper-controls select:focus { outline: none; border-color: #e94560; }
+.whisper-note { font-size: 0.78rem; color: #666; margin-bottom: 8px; line-height: 1.5; }
+.whisper-status { font-size: 0.82rem; color: #888; min-height: 1.2em; margin-top: 6px; }
+.whisper-status.active { color: #27ae60; }
+.whisper-status.error { color: #c0392b; }
+.whisper-seg-progress {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; max-height: 60px; overflow-y: auto;
+}
+.whisper-seg-badge {
+  font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; font-family: 'Consolas', monospace;
+  background: #0f3460; color: #888;
+}
+.whisper-seg-badge.done { background: rgba(39,174,96,0.2); color: #27ae60; }
+.whisper-seg-badge.active { background: rgba(233,69,96,0.2); color: #e94560; }
 </style>
 </head>
 <body>
@@ -297,11 +413,32 @@ canvas#timelineCanvas { display: block; }
           <th>開始</th>
           <th>終了</th>
           <th>長さ</th>
-          <th>テキスト</th>
+          <th>テキスト（編集可）</th>
         </tr>
       </thead>
       <tbody id="segmentsBody"></tbody>
     </table>
+  </div>
+
+  <!-- Whisper Transcription Section -->
+  <div class="whisper-section" id="whisperSection" style="display:none;">
+    <h3>文字起こし（Whisper / transformers.js）</h3>
+    <p class="whisper-note">
+      ブラウザ内で Whisper モデルを実行します。初回はモデルのダウンロードが発生します（以降はキャッシュ）。<br>
+      <strong>tiny</strong>: 約75MB・高速・精度低め　／　<strong>small</strong>: 約460MB・推奨　／　<strong>medium</strong>: 約1.5GB・高精度
+    </p>
+    <div class="whisper-controls">
+      <select id="whisperModel">
+        <option value="Xenova/whisper-tiny">whisper-tiny（約75MB・高速）</option>
+        <option value="Xenova/whisper-small" selected>whisper-small（約460MB・推奨）</option>
+        <option value="Xenova/whisper-medium">whisper-medium（約1.5GB・高精度）</option>
+      </select>
+      <button class="btn btn-primary btn-sm" id="transcribeAllBtn">全セグメントを文字起こし</button>
+      <button class="btn btn-sm" id="resetWhisperBtn" title="モデルを再読み込みします">モデルリセット</button>
+    </div>
+    <div class="progress-bar" id="whisperProgress"><div class="progress-fill" id="whisperProgressFill"></div></div>
+    <div class="whisper-status" id="whisperStatus"></div>
+    <div class="whisper-seg-progress" id="whisperSegProgress"></div>
   </div>
 </div>
 
@@ -432,6 +569,70 @@ canvas#timelineCanvas { display: block; }
   <div class="btn-row" id="downloadRow" style="display:none;">
     <button class="btn btn-success" id="downloadCsvBtn">CSVをダウンロード</button>
   </div>
+
+  <hr class="section-divider">
+
+  <!-- Method 2: Content-based generation -->
+  <h3>方法2: セリフテキストからCSV生成（データベース参照）</h3>
+  <p style="font-size:0.82rem;color:#888;margin-bottom:10px;">Step 6のデータベースに蓄積したセリフ内容とCSVパターンの対応を元に、テキスト入力からCSVを生成します。</p>
+  <div class="content-gen-area">
+    <label>セリフテキストを入力（句読点・改行でセグメント分割）:</label>
+    <textarea id="contentGenInput" placeholder="例:&#10;あ、もっとゆっくり...&#10;きゅん、ってする...&#10;だめっ、もうだめっ..."></textarea>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="generateFromTextBtn">テキストからCSVを生成</button>
+  </div>
+  <div class="content-pattern-map" id="contentPatternMap"></div>
+</div>
+
+<!-- ========== Step 6: 分析データベース ========== -->
+<div class="section" id="sectionDatabase">
+  <h2><span class="step-badge">Step 6</span>分析データベース</h2>
+  <p style="font-size:0.82rem;color:#888;margin-bottom:14px;">複数回の分析結果を蓄積し、セリフ内容とCSVパターンの対応を学習させます。テキストからのCSV生成精度が向上します。</p>
+
+  <!-- DB Stats -->
+  <div class="db-stats">
+    <div class="db-stat">
+      <div class="db-stat-value" id="dbTotalEntries">0</div>
+      <div class="db-stat-label">登録件数</div>
+    </div>
+    <div class="db-stat">
+      <div class="db-stat-value" id="dbTotalSegments">0</div>
+      <div class="db-stat-label">累計セグメント</div>
+    </div>
+    <div class="db-stat">
+      <div class="db-stat-value" id="dbWithText">0</div>
+      <div class="db-stat-label">テキスト付き件数</div>
+    </div>
+  </div>
+
+  <!-- Save to DB -->
+  <h3>現在の分析をデータベースに保存</h3>
+  <div class="template-save-row">
+    <input type="text" id="dbNameInput" placeholder="登録名を入力（例: 作品名_キャラ名）...">
+    <button class="btn btn-primary btn-sm" id="saveToDbBtn">データベースに保存</button>
+  </div>
+
+  <!-- DB List -->
+  <h3>蓄積データ一覧</h3>
+  <div class="db-list" id="dbList">
+    <div class="db-item" style="color:#666; justify-content:center; cursor:default;">データがありません</div>
+  </div>
+
+  <!-- DB Entry Detail -->
+  <div class="db-entry-detail" id="dbEntryDetail">
+    <h3 id="dbEntryTitle">データ詳細</h3>
+    <pre id="dbEntryContent"></pre>
+  </div>
+
+  <!-- DB Export/Import/Clear -->
+  <h3>エクスポート / インポート</h3>
+  <div class="template-export-row">
+    <button class="btn btn-secondary btn-sm" id="exportDbBtn">DBをエクスポート</button>
+    <button class="btn btn-secondary btn-sm" id="importDbBtn">DBをインポート</button>
+    <button class="btn btn-sm btn-danger" id="clearDbBtn">DBをクリア</button>
+    <input type="file" id="importDbInput" accept=".json" style="display:none;">
+  </div>
 </div>
 
 <!-- ========== Toast Notification ========== -->
@@ -445,6 +646,9 @@ let csvData = null; // parsed CSV
 let csvFormat = 3; // 3-col or 5-col
 let analysisResults = null;
 let templateLibrary = JSON.parse(localStorage.getItem('patternTemplates') || '[]');
+let analysisDatabase = JSON.parse(localStorage.getItem('analysisDatabase') || '[]');
+let currentAudioFileName = '';
+let currentCsvFileName = '';
 
 let waveformData = null;
 
@@ -468,11 +672,13 @@ function escapeHtml(str) {
 
 // ====== Toast Notification ======
 function showToast(msg, isError) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = isError ? '#c0392b' : '#27ae60';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + (isError ? 'error' : 'success');
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
 }
 
 // ====== Audio Loading ======
@@ -517,24 +723,27 @@ function extractWaveform(buffer, samples) {
 
 function loadAudioFile(file) {
   if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const statusEl = document.getElementById('status');
-  if (statusEl) statusEl.textContent = `ファイル読み込み中: ${file.name}`;
+  currentAudioFileName = file.name;
+  const infoEl = document.getElementById('audioInfo');
+  if (infoEl) infoEl.textContent = `ファイル読み込み中: ${file.name}`;
 
   const reader = new FileReader();
   reader.onload = function(e) {
     audioContext.decodeAudioData(e.target.result, function(buffer) {
       audioBuffer = buffer;
       waveformData = extractWaveform(buffer, 860);
+      monoAudio16k = null; // reset 16kHz cache when new audio loaded
+      whisperPipeline = null; // reset model if audio changes (sample rate may differ)
 
       const detectBtn = document.getElementById('detectBtn');
       if (detectBtn) detectBtn.disabled = false;
 
       drawWaveform();
 
-      if (statusEl) statusEl.textContent = `読み込み完了: ${file.name} (${formatTimeFull(buffer.duration)})`;
+      if (infoEl) infoEl.textContent = `読み込み完了: ${file.name} (${formatTimeFull(buffer.duration)})`;
       showToast('音声ファイルを読み込みました');
     }, function() {
-      if (statusEl) statusEl.textContent = 'エラー: 音声ファイルを読み込めませんでした';
+      if (infoEl) infoEl.textContent = 'エラー: 音声ファイルを読み込めませんでした';
       showToast('音声ファイルのデコードに失敗しました', true);
     });
   };
@@ -639,16 +848,16 @@ async function startSpeechDetection() {
   const detectBtn = document.getElementById('detectBtn');
   if (detectBtn) detectBtn.disabled = true;
 
-  const progressBar = document.getElementById('progressBar');
-  const progressFill = document.getElementById('progressFill');
+  const progressBar = document.getElementById('detectProgress');
+  const progressFill = document.getElementById('detectProgressFill');
   if (progressBar) progressBar.classList.add('active');
   if (progressFill) progressFill.style.width = '0%';
 
-  const resultsBody = document.getElementById('resultsBody');
-  if (resultsBody) resultsBody.innerHTML = '';
+  const segmentsBody = document.getElementById('segmentsBody');
+  if (segmentsBody) segmentsBody.innerHTML = '';
   segments = [];
 
-  const statusEl = document.getElementById('status');
+  const statusEl = document.getElementById('detectStatus');
   if (statusEl) statusEl.textContent = 'セリフ区間を解析中...';
 
   segments = await detectSpeechSegments();
@@ -658,8 +867,20 @@ async function startSpeechDetection() {
 
   if (progressFill) progressFill.style.width = '100%';
 
+  // Show results table
+  const segmentsWrapper = document.getElementById('segmentsWrapper');
+  if (segmentsWrapper) segmentsWrapper.classList.add('active');
+
+  // Show Whisper transcription section
+  const whisperSection = document.getElementById('whisperSection');
+  if (whisperSection) whisperSection.style.display = 'block';
+
   renderSegmentResults();
   drawWaveform(playOffset);
+
+  // Enable analyze button if CSV is also loaded
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  if (analyzeBtn && csvData && csvData.length > 0) analyzeBtn.disabled = false;
 
   if (detectBtn) detectBtn.disabled = false;
   if (statusEl) statusEl.textContent = `完了: ${segments.length} 個のセリフ区間を検出`;
@@ -671,7 +892,7 @@ async function startSpeechDetection() {
 
 // ====== Render Segment Results ======
 function renderSegmentResults() {
-  const body = document.getElementById('resultsBody');
+  const body = document.getElementById('segmentsBody');
   if (!body) return;
   body.innerHTML = '';
 
@@ -679,18 +900,29 @@ function renderSegmentResults() {
 
   segments.forEach((seg, i) => {
     const tr = document.createElement('tr');
+    const textVal = (seg.text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td class="timestamp" data-time="${seg.start}" title="クリックで再生">${formatTimeFull(seg.start)}</td>
       <td class="timestamp" data-time="${seg.end}" title="クリックで再生">${formatTimeFull(seg.end)}</td>
       <td class="duration">${(seg.end - seg.start).toFixed(2)}s</td>
-      <td class="text-cell">${seg.text ? escapeHtml(seg.text) : '<span style="color:#555">—</span>'}</td>`;
+      <td class="text-cell">
+        <input type="text" class="seg-text-input" data-idx="${i}" value="${textVal}" placeholder="セリフを入力...">
+      </td>`;
     tr.querySelectorAll('.timestamp').forEach(td => {
       td.addEventListener('click', () => {
         stopPlayback();
         playFromTime(parseFloat(td.dataset.time));
       });
     });
+    const textInput = tr.querySelector('.seg-text-input');
+    if (textInput) {
+      textInput.addEventListener('input', function() {
+        if (segments[parseInt(this.dataset.idx)]) {
+          segments[parseInt(this.dataset.idx)].text = this.value;
+        }
+      });
+    }
     body.appendChild(tr);
   });
 }
@@ -841,14 +1073,25 @@ function initCsvDropZone() {
  * Reads a CSV file using FileReader and parses it.
  */
 function loadCsvFile(file) {
+  currentCsvFileName = file.name;
   const reader = new FileReader();
   reader.onload = (e) => {
     const text = e.target.result;
     csvData = parseCsvText(text);
     renderCsvPreview();
+
+    const csvInfo = document.getElementById('csvInfo');
+    if (csvInfo) csvInfo.textContent = `読み込み完了: ${file.name} (${csvData.length}行)`;
+
+    // Enable analyze button if speech segments are also loaded
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    if (analyzeBtn && segments && segments.length > 0) analyzeBtn.disabled = false;
+
+    showToast('CSVファイルを読み込みました');
     console.log(`CSV loaded: ${csvData.length} rows`);
   };
   reader.onerror = () => {
+    showToast('CSVファイルの読み込みに失敗しました', true);
     console.error('Failed to read CSV file');
   };
   reader.readAsText(file, 'UTF-8');
@@ -920,8 +1163,16 @@ function parseCsvText(text) {
  * Shows the first 50 rows in table body #csvPreviewBody.
  */
 function renderCsvPreview() {
+  const wrapper = document.getElementById('csvPreviewWrapper');
+  const thead = document.getElementById('csvPreviewHead');
   const tbody = document.getElementById('csvPreviewBody');
   if (!tbody) return;
+
+  if (wrapper) wrapper.classList.add('active');
+
+  if (thead) {
+    thead.innerHTML = '<tr><th>Time(ds)</th><th>Time(s)</th><th>Dir</th><th>Speed</th><th>RDir</th><th>RSpeed</th></tr>';
+  }
 
   tbody.innerHTML = '';
 
@@ -987,6 +1238,7 @@ function runAnalysis() {
       start: segStart,
       end: segEnd,
       duration: segEnd - segStart,
+      text: seg.text || '',
       dialoguePattern: dialoguePattern,
       csvPattern: csvPattern,
       gapCsvPattern: gapCsvPattern,
@@ -996,6 +1248,21 @@ function runAnalysis() {
   }
 
   renderAnalysisResults();
+
+  // Show timeline and summary
+  const timelineWrap = document.getElementById('timelineWrap');
+  if (timelineWrap) timelineWrap.style.display = 'block';
+  const summaryStats = document.getElementById('summaryStats');
+  if (summaryStats) summaryStats.style.display = 'grid';
+
+  // Enable template save and DB save
+  const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+  if (saveTemplateBtn) saveTemplateBtn.disabled = false;
+
+  const analyzeStatus = document.getElementById('analyzeStatus');
+  if (analyzeStatus) analyzeStatus.textContent = `分析完了: ${analysisResults.length} セグメント`;
+
+  showToast('パターン分析が完了しました');
   console.log(`Analysis complete: ${analysisResults.length} segments analyzed`);
 }
 
@@ -1331,55 +1598,51 @@ function drawTimeline() {
 }
 
 /**
- * Renders pattern cards in #analysisCards.
+ * Renders pattern cards in #matchCards.
  */
 function renderPatternCards() {
-  const container = document.getElementById('analysisCards');
+  const container = document.getElementById('matchCards');
   if (!container) return;
 
   container.innerHTML = '';
 
   analysisResults.forEach((result) => {
     const card = document.createElement('div');
-    card.className = 'analysis-card';
+    card.className = 'match-card';
 
     const speedRange =
       result.csvPattern.type === '無音'
         ? '-'
-        : result.csvPattern.minSpeed + '～' + result.csvPattern.maxSpeed;
+        : (result.csvPattern.minSpeed || 0) + '～' + (result.csvPattern.maxSpeed || 0);
+
+    const textHtml = result.text
+      ? '<div class="info-col" style="flex:2;min-width:180px;">' +
+        '<span class="info-label">セリフ内容</span>' +
+        '<span class="info-value speech-text-value">' + escapeHtml(result.text) + '</span>' +
+        '</div>'
+      : '';
 
     card.innerHTML =
       '<div class="card-header">' +
-      '<span class="segment-num">セグメント #' +
-      (result.segmentIndex + 1) +
+      '<span class="seg-num">セグメント #' + (result.segmentIndex + 1) + '</span>' +
+      '<span style="font-size:0.8rem;color:#888;font-family:Consolas,monospace">' +
+      result.start.toFixed(1) + 's ～ ' + result.end.toFixed(1) + 's' +
       '</span>' +
-      '<span class="time-range">' +
-      result.start.toFixed(1) +
-      's ～ ' +
-      result.end.toFixed(1) +
-      's</span>' +
       '</div>' +
       '<div class="card-body">' +
-      '<div class="pattern-row">' +
-      '<span class="pattern-label">台詞パターン:</span>' +
-      '<span class="pattern-value">' +
-      result.dialoguePattern.label +
-      '</span>' +
+      '<div class="info-col">' +
+      '<span class="info-label">台詞パターン</span>' +
+      '<span class="info-value">' + result.dialoguePattern.label + '</span>' +
       '</div>' +
-      '<div class="pattern-row">' +
-      '<span class="pattern-label">CSVパターン:</span>' +
-      '<span class="pattern-value csv-pattern-' +
-      result.csvPattern.type +
-      '">' +
-      result.csvPattern.label +
-      '</span>' +
+      '<div class="info-col">' +
+      '<span class="info-label">CSVパターン</span>' +
+      '<span class="info-value">' + result.csvPattern.label + '</span>' +
       '</div>' +
-      '<div class="pattern-row">' +
-      '<span class="pattern-label">速度範囲:</span>' +
-      '<span class="pattern-value">' +
-      speedRange +
-      '</span>' +
+      '<div class="info-col">' +
+      '<span class="info-label">速度範囲</span>' +
+      '<span class="info-value">' + speedRange + '</span>' +
       '</div>' +
+      textHtml +
       '</div>';
 
     container.appendChild(card);
@@ -1387,39 +1650,37 @@ function renderPatternCards() {
 }
 
 /**
- * Renders analysis summary in #analysisSummary.
+ * Renders analysis summary in the stat cards.
  */
 function renderAnalysisSummary() {
-  const container = document.getElementById('analysisSummary');
-  if (!container) return;
-
   const totalSegments = analysisResults.length;
+  if (totalSegments === 0) return;
 
-  // Count pattern distribution
-  const patternCounts = {};
-  analysisResults.forEach((result) => {
-    const type = result.csvPattern.label;
-    patternCounts[type] = (patternCounts[type] || 0) + 1;
-  });
+  const statTotal = document.getElementById('statTotalSegments');
+  if (statTotal) statTotal.textContent = totalSegments;
 
-  let tableRows = '';
-  for (const [pattern, count] of Object.entries(patternCounts)) {
-    const pct = ((count / totalSegments) * 100).toFixed(1);
-    tableRows +=
-      '<tr>' +
-      '<td>' + pattern + '</td>' +
-      '<td>' + count + '</td>' +
-      '<td>' + pct + '%</td>' +
-      '</tr>';
-  }
+  const matchedSegments = analysisResults.filter(r => r.csvPattern.type !== '無音').length;
+  const statMatched = document.getElementById('statMatchedSegments');
+  if (statMatched) statMatched.textContent = matchedSegments;
 
-  container.innerHTML =
-    '<h3>分析サマリー</h3>' +
-    '<p>総セグメント数: ' + totalSegments + '</p>' +
-    '<table class="summary-table">' +
-    '<thead><tr><th>パターン</th><th>出現数</th><th>割合</th></tr></thead>' +
-    '<tbody>' + tableRows + '</tbody>' +
-    '</table>';
+  const matchRate = totalSegments > 0 ? ((matchedSegments / totalSegments) * 100).toFixed(0) : 0;
+  const statMatchRate = document.getElementById('statMatchRate');
+  if (statMatchRate) statMatchRate.textContent = matchRate + '%';
+
+  const avgSpeeds = analysisResults.filter(r => r.csvPattern.avgSpeed).map(r => r.csvPattern.avgSpeed);
+  const avgScore = avgSpeeds.length > 0
+    ? Math.round(avgSpeeds.reduce((a, b) => a + b, 0) / avgSpeeds.length)
+    : 0;
+  const statAvgScore = document.getElementById('statAvgScore');
+  if (statAvgScore) statAvgScore.textContent = avgScore;
+
+  const totalDuration = analysisResults.reduce((sum, r) => sum + r.duration, 0);
+  const statTotalDuration = document.getElementById('statTotalDuration');
+  if (statTotalDuration) statTotalDuration.textContent = totalDuration.toFixed(1) + 's';
+
+  const totalCsvRows = analysisResults.reduce((sum, r) => sum + (r.overlappingCsvRows ? r.overlappingCsvRows.length : 0), 0);
+  const statCsvRows = document.getElementById('statCsvRows');
+  if (statCsvRows) statCsvRows.textContent = totalCsvRows;
 }
 
 // ============================================================
@@ -1432,27 +1693,26 @@ function renderAnalysisSummary() {
  * to templateLibrary in localStorage key 'patternTemplates'.
  */
 function saveAsTemplate() {
-  const nameInput = document.getElementById('templateName');
+  const nameInput = document.getElementById('templateNameInput');
   const name = nameInput ? nameInput.value.trim() : '';
 
   if (!name) {
-    alert('テンプレート名を入力してください。');
+    showToast('テンプレート名を入力してください', true);
     return;
   }
 
-  if (analysisResults.length === 0) {
-    alert('分析結果がありません。先に分析を実行してください。');
+  if (!analysisResults || analysisResults.length === 0) {
+    showToast('分析結果がありません。先に分析を実行してください', true);
     return;
   }
 
-  // Calculate total audio duration from the last segment
-  const totalDuration =
-    analysisResults[analysisResults.length - 1].end;
+  const totalDuration = analysisResults[analysisResults.length - 1].end;
 
   const patterns = analysisResults.map((result) => ({
     dialoguePattern: result.dialoguePattern,
     csvPattern: result.csvPattern,
     relativePosition: totalDuration > 0 ? result.start / totalDuration : 0,
+    text: result.text || '',
   }));
 
   const template = {
@@ -1467,6 +1727,7 @@ function saveAsTemplate() {
 
   if (nameInput) nameInput.value = '';
   renderTemplateList();
+  showToast('テンプレートを保存しました');
   console.log(`Template saved: ${name} (${patterns.length} patterns)`);
 }
 
@@ -1480,10 +1741,10 @@ function renderTemplateList() {
 
   container.innerHTML = '';
 
-  // Also update the template select dropdown if present
-  const select = document.getElementById('templateSelect');
+  // Also update the template select dropdown
+  const select = document.getElementById('applyTemplateSelect');
   if (select) {
-    select.innerHTML = '<option value="">テンプレートを選択...</option>';
+    select.innerHTML = '<option value="">-- テンプレートを選択 --</option>';
     templateLibrary.forEach((tmpl) => {
       const option = document.createElement('option');
       option.value = tmpl.id;
@@ -1493,7 +1754,7 @@ function renderTemplateList() {
   }
 
   if (templateLibrary.length === 0) {
-    container.innerHTML = '<p class="empty-message">保存されたテンプレートはありません。</p>';
+    container.innerHTML = '<div class="template-item" style="color:#666; justify-content:center; cursor:default;">テンプレートがありません</div>';
     return;
   }
 
@@ -1502,21 +1763,19 @@ function renderTemplateList() {
     item.className = 'template-item';
 
     const dateStr = new Date(tmpl.createdAt).toLocaleDateString('ja-JP');
+    const withText = tmpl.patterns.filter(p => p.text && p.text.trim()).length;
 
     item.innerHTML =
-      '<div class="template-info">' +
-      '<span class="template-name">' + tmpl.name + '</span>' +
-      '<span class="template-meta">' +
+      '<div>' +
+      '<div class="template-name">' + escapeHtml(tmpl.name) + '</div>' +
+      '<div class="template-date">' +
       dateStr + ' / ' + tmpl.patterns.length + 'パターン' +
-      '</span>' +
+      (withText > 0 ? ' / テキスト' + withText + '件' : '') +
+      '</div>' +
       '</div>' +
       '<div class="template-actions">' +
-      '<button class="btn-detail" onclick="showTemplateDetail(\'' +
-      tmpl.id +
-      '\')">詳細</button>' +
-      '<button class="btn-delete" onclick="deleteTemplate(\'' +
-      tmpl.id +
-      '\')">削除</button>' +
+      '<button class="btn btn-sm" onclick="showTemplateDetail(\'' + tmpl.id + '\')">詳細</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteTemplate(\'' + tmpl.id + '\')">削除</button>' +
       '</div>';
 
     container.appendChild(item);
@@ -1545,7 +1804,7 @@ function deleteTemplate(id) {
  */
 function exportTemplates() {
   if (templateLibrary.length === 0) {
-    alert('エクスポートするテンプレートがありません。');
+    showToast('エクスポートするテンプレートがありません', true);
     return;
   }
 
@@ -1562,52 +1821,39 @@ function exportTemplates() {
 }
 
 /**
- * 13. importTemplates()
- * Opens a file input for JSON import, merges into library.
+ * 13. importTemplates(e)
+ * Processes a file-input change event for JSON template import.
  */
-function importTemplates() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
+function importTemplates(e) {
+  const file = e.target.files ? e.target.files[0] : null;
+  if (!file) return;
 
-  input.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const imported = JSON.parse(ev.target.result);
-        if (!Array.isArray(imported)) {
-          alert('無効なテンプレートファイルです。');
-          return;
-        }
-
-        // Merge: skip duplicates by id
-        const existingIds = new Set(templateLibrary.map((t) => t.id));
-        let addedCount = 0;
-        imported.forEach((tmpl) => {
-          if (tmpl.id && !existingIds.has(tmpl.id)) {
-            templateLibrary.push(tmpl);
-            existingIds.add(tmpl.id);
-            addedCount++;
-          }
-        });
-
-        localStorage.setItem(
-          'patternTemplates',
-          JSON.stringify(templateLibrary)
-        );
-        renderTemplateList();
-        console.log(`Imported ${addedCount} templates`);
-      } catch (err) {
-        alert('JSONの解析に失敗しました: ' + err.message);
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (!Array.isArray(imported)) {
+        showToast('無効なテンプレートファイルです', true);
+        return;
       }
-    };
-    reader.readAsText(file);
-  });
-
-  input.click();
+      const existingIds = new Set(templateLibrary.map((t) => t.id));
+      let addedCount = 0;
+      imported.forEach((tmpl) => {
+        if (tmpl.id && !existingIds.has(tmpl.id)) {
+          templateLibrary.push(tmpl);
+          existingIds.add(tmpl.id);
+          addedCount++;
+        }
+      });
+      localStorage.setItem('patternTemplates', JSON.stringify(templateLibrary));
+      renderTemplateList();
+      showToast(`${addedCount}件のテンプレートをインポートしました`);
+    } catch (err) {
+      showToast('JSONの解析に失敗しました', true);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // Reset so same file can be re-imported
 }
 
 /**
@@ -1617,33 +1863,23 @@ function importTemplates() {
 function showTemplateDetail(id) {
   const container = document.getElementById('templateDetail');
   if (!container) return;
+  container.classList.add('active');
 
   const template = templateLibrary.find((t) => t.id === id);
-  if (!template) {
-    container.innerHTML = '<p>テンプレートが見つかりません。</p>';
-    return;
-  }
+  if (!template) return;
 
-  let patternsHtml = '';
-  template.patterns.forEach((p, i) => {
-    patternsHtml +=
-      '<div class="detail-pattern">' +
-      '<div class="detail-pattern-num">#' + (i + 1) + '</div>' +
-      '<div class="detail-pattern-info">' +
-      '<div>台詞: ' + p.dialoguePattern.label + '</div>' +
-      '<div>CSV: ' + p.csvPattern.label + '</div>' +
-      '<div>相対位置: ' + (p.relativePosition * 100).toFixed(1) + '%</div>' +
-      '</div>' +
-      '</div>';
-  });
+  const nameEl = document.getElementById('templateDetailName');
+  if (nameEl) nameEl.textContent = template.name;
 
   const dateStr = new Date(template.createdAt).toLocaleDateString('ja-JP');
 
-  container.innerHTML =
-    '<h3>' + template.name + '</h3>' +
-    '<p class="detail-meta">作成日: ' + dateStr +
-    ' / パターン数: ' + template.patterns.length + '</p>' +
-    '<div class="detail-patterns">' + patternsHtml + '</div>';
+  const content = template.patterns.map((p, i) => {
+    const textStr = p.text ? `\n  セリフ: 「${p.text}」` : '';
+    return `#${i + 1} [${(p.relativePosition * 100).toFixed(0)}%]\n  台詞: ${p.dialoguePattern.label}\n  CSV: ${p.csvPattern.label}${textStr}`;
+  }).join('\n\n');
+
+  const contentEl = document.getElementById('templateDetailContent');
+  if (contentEl) contentEl.textContent = `作成日: ${dateStr}\nパターン数: ${template.patterns.length}\n\n${content}`;
 }
 
 // ============================================================
@@ -1655,20 +1891,20 @@ function showTemplateDetail(id) {
  * Applies the selected template to current audio segments.
  */
 function applyTemplate() {
-  const select = document.getElementById('templateSelect');
+  const select = document.getElementById('applyTemplateSelect');
   if (!select || !select.value) {
-    alert('テンプレートを選択してください。');
+    showToast('テンプレートを選択してください', true);
     return;
   }
 
   const template = templateLibrary.find((t) => t.id === select.value);
   if (!template) {
-    alert('テンプレートが見つかりません。');
+    showToast('テンプレートが見つかりません', true);
     return;
   }
 
   if (typeof segments === 'undefined' || !segments || segments.length === 0) {
-    alert('音声セグメントが読み込まれていません。');
+    showToast('音声セグメントが読み込まれていません', true);
     return;
   }
 
@@ -1815,8 +2051,8 @@ function applyTemplate() {
   // Sort by time
   generatedCsvRows.sort((a, b) => a.time - b.time);
 
-  // Display in preview
   renderGeneratedCsvPreview();
+  showToast(`${generatedCsvRows.length}行のCSVを生成しました`);
   console.log(`Template applied: ${generatedCsvRows.length} CSV rows generated`);
 }
 
@@ -1826,38 +2062,26 @@ function applyTemplate() {
 function renderGeneratedCsvPreview() {
   const container = document.getElementById('generatedCsvPreview');
   if (!container) return;
+  container.classList.add('active');
+
+  const preEl = document.getElementById('generatedCsvContent');
+  if (!preEl) return;
 
   if (generatedCsvRows.length === 0) {
-    container.innerHTML = '<p>生成されたCSVデータはありません。</p>';
+    preEl.textContent = '生成されたCSVデータはありません。';
     return;
   }
 
-  let html =
-    '<table class="csv-preview-table">' +
-    '<thead><tr><th>Time (ds)</th><th>Direction</th><th>Speed</th></tr></thead>' +
-    '<tbody>';
-
-  const maxPreview = Math.min(generatedCsvRows.length, 100);
-  for (let i = 0; i < maxPreview; i++) {
-    const row = generatedCsvRows[i];
-    html +=
-      '<tr>' +
-      '<td>' + row.time + '</td>' +
-      '<td>' + row.direction + '</td>' +
-      '<td>' + row.speed + '</td>' +
-      '</tr>';
-  }
-
-  html += '</tbody></table>';
-
+  const lines = generatedCsvRows.slice(0, 100).map(
+    (row) => `${row.time},${row.direction},${row.speed}`
+  );
   if (generatedCsvRows.length > 100) {
-    html +=
-      '<p class="preview-note">...他 ' +
-      (generatedCsvRows.length - 100) +
-      ' 行</p>';
+    lines.push(`...他 ${generatedCsvRows.length - 100} 行`);
   }
+  preEl.textContent = lines.join('\n');
 
-  container.innerHTML = html;
+  const downloadRow = document.getElementById('downloadRow');
+  if (downloadRow) downloadRow.style.display = 'flex';
 }
 
 /**
@@ -1921,21 +2145,642 @@ function calculateCorrelation(arr) {
   return numerator / denominator;
 }
 
-// ====== Initialization ======
+// ============================================================
+// Speech Transcription – Whisper via transformers.js
+// ============================================================
+
+let whisperPipeline = null;       // cached pipeline instance
+let monoAudio16k = null;          // cached 16kHz mono Float32Array
+
+/**
+ * Loads (or returns cached) the Whisper pipeline.
+ * Shows download progress in the UI.
+ */
+async function loadWhisperModel() {
+  if (whisperPipeline) return whisperPipeline;
+
+  const modelSelect = document.getElementById('whisperModel');
+  const modelName = modelSelect ? modelSelect.value : 'Xenova/whisper-small';
+
+  const statusEl = document.getElementById('whisperStatus');
+  const progressBar = document.getElementById('whisperProgress');
+  const progressFill = document.getElementById('whisperProgressFill');
+
+  if (statusEl) {
+    statusEl.textContent = `モデル読み込み中: ${modelName}（初回はダウンロードが発生します）`;
+    statusEl.className = 'whisper-status active';
+  }
+  if (progressBar) progressBar.classList.add('active');
+  if (progressFill) progressFill.style.width = '0%';
+
+  // Load transformers.js via dynamic import (ES module CDN)
+  const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2');
+
+  whisperPipeline = await pipeline(
+    'automatic-speech-recognition',
+    modelName,
+    {
+      progress_callback: (data) => {
+        if (data.status === 'progress' && progressFill) {
+          const pct = Math.round(data.progress || 0);
+          progressFill.style.width = pct + '%';
+          if (statusEl) {
+            statusEl.textContent = `ダウンロード中: ${data.file || ''} (${pct}%)`;
+          }
+        } else if (data.status === 'done' && statusEl) {
+          statusEl.textContent = 'モデル読み込み完了';
+        }
+      },
+    }
+  );
+
+  if (progressBar) progressBar.classList.remove('active');
+  if (progressFill) progressFill.style.width = '100%';
+  if (statusEl) {
+    statusEl.textContent = 'モデル準備完了 — 文字起こしを開始できます';
+    statusEl.className = 'whisper-status';
+  }
+
+  return whisperPipeline;
+}
+
+/**
+ * Resamples audioBuffer to 16kHz mono Float32Array (cached).
+ * Whisper requires 16kHz mono input.
+ */
+async function resampleToMono16k() {
+  if (monoAudio16k) return monoAudio16k;
+  if (!audioBuffer) return null;
+
+  const targetRate = 16000;
+  const offlineCtx = new OfflineAudioContext(
+    1,
+    Math.ceil(audioBuffer.duration * targetRate),
+    targetRate
+  );
+  const source = offlineCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(offlineCtx.destination);
+  source.start(0);
+
+  const rendered = await offlineCtx.startRendering();
+  monoAudio16k = rendered.getChannelData(0);
+  return monoAudio16k;
+}
+
+/**
+ * Transcribes all detected speech segments using Whisper.
+ */
+async function autoTranscribeAll() {
+  if (!segments || segments.length === 0) {
+    showToast('先に発話区間を検出してください', true);
+    return;
+  }
+  if (!audioBuffer) {
+    showToast('音声ファイルが読み込まれていません', true);
+    return;
+  }
+
+  const btn = document.getElementById('transcribeAllBtn');
+  const statusEl = document.getElementById('whisperStatus');
+  const progressBar = document.getElementById('whisperProgress');
+  const progressFill = document.getElementById('whisperProgressFill');
+  const segProgressEl = document.getElementById('whisperSegProgress');
+
+  if (btn) btn.disabled = true;
+
+  // Build segment badges
+  if (segProgressEl) {
+    segProgressEl.innerHTML = segments.map((_, i) =>
+      `<span class="whisper-seg-badge" id="wbadge-${i}">#${i + 1}</span>`
+    ).join('');
+  }
+
+  try {
+    // Step 1: Load model
+    const pipe = await loadWhisperModel();
+
+    // Step 2: Resample audio to 16kHz mono
+    if (statusEl) { statusEl.textContent = '音声を16kHzにリサンプリング中...'; statusEl.className = 'whisper-status active'; }
+    const audio16k = await resampleToMono16k();
+
+    if (progressBar) progressBar.classList.add('active');
+
+    // Step 3: Transcribe each segment
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+
+      // Update badge
+      const badge = document.getElementById(`wbadge-${i}`);
+      if (badge) badge.className = 'whisper-seg-badge active';
+
+      // Update progress bar
+      const pct = Math.round((i / segments.length) * 100);
+      if (progressFill) progressFill.style.width = pct + '%';
+      if (statusEl) statusEl.textContent = `文字起こし中: ${i + 1} / ${segments.length}`;
+
+      // Extract segment audio at 16kHz
+      const startSample = Math.floor(seg.start * 16000);
+      const endSample = Math.floor(seg.end * 16000);
+      const segAudio = audio16k.slice(startSample, endSample);
+
+      // Run Whisper inference
+      const result = await pipe(segAudio, {
+        language: 'japanese',
+        task: 'transcribe',
+      });
+
+      segments[i].text = (result.text || '').trim();
+
+      // Update input field live
+      const input = document.querySelector(`.seg-text-input[data-idx="${i}"]`);
+      if (input) input.value = segments[i].text;
+
+      // Mark badge done
+      if (badge) badge.className = 'whisper-seg-badge done';
+
+      await yieldToMain(); // keep UI responsive
+    }
+
+    if (progressFill) progressFill.style.width = '100%';
+    if (statusEl) {
+      statusEl.textContent = `完了: ${segments.length}件のセグメントを文字起こしました`;
+      statusEl.className = 'whisper-status';
+    }
+    setTimeout(() => { if (progressBar) progressBar.classList.remove('active'); }, 1500);
+
+    showToast('文字起こしが完了しました');
+
+  } catch (err) {
+    if (statusEl) {
+      statusEl.textContent = 'エラー: ' + err.message;
+      statusEl.className = 'whisper-status error';
+    }
+    showToast('文字起こしに失敗しました: ' + err.message, true);
+    console.error(err);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ============================================================
+// Analysis Database
+// ============================================================
+
+function saveToDatabase() {
+  if (!analysisResults || analysisResults.length === 0) {
+    showToast('分析結果がありません。先に分析を実行してください', true);
+    return;
+  }
+
+  const nameInput = document.getElementById('dbNameInput');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) {
+    showToast('登録名を入力してください', true);
+    return;
+  }
+
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    name: name,
+    audioFileName: currentAudioFileName || '不明',
+    csvFileName: currentCsvFileName || '不明',
+    createdAt: new Date().toISOString(),
+    segmentCount: analysisResults.length,
+    analysisResults: analysisResults.map(r => ({
+      segmentIndex: r.segmentIndex,
+      start: r.start,
+      end: r.end,
+      duration: r.duration,
+      text: r.text || '',
+      dialoguePattern: r.dialoguePattern,
+      csvPattern: {
+        type: r.csvPattern.type,
+        label: r.csvPattern.label,
+        avgSpeed: r.csvPattern.avgSpeed,
+        minSpeed: r.csvPattern.minSpeed,
+        maxSpeed: r.csvPattern.maxSpeed,
+        directionPattern: r.csvPattern.directionPattern,
+        rowCount: r.csvPattern.rowCount,
+        startSpeed: r.csvPattern.startSpeed,
+        endSpeed: r.csvPattern.endSpeed,
+        peakSpeed: r.csvPattern.peakSpeed,
+        amplitude: r.csvPattern.amplitude,
+        speeds: r.csvPattern.speeds ? r.csvPattern.speeds.slice(0, 50) : undefined,
+        directions: r.csvPattern.directions ? r.csvPattern.directions.slice(0, 50) : undefined,
+      },
+    })),
+  };
+
+  analysisDatabase.push(entry);
+  try {
+    localStorage.setItem('analysisDatabase', JSON.stringify(analysisDatabase));
+  } catch (e) {
+    showToast('ストレージ容量不足。エクスポートして容量を確保してください', true);
+    analysisDatabase.pop();
+    return;
+  }
+
+  if (nameInput) nameInput.value = '';
+  renderDatabaseList();
+  showToast('分析結果をデータベースに保存しました');
+}
+
+function renderDatabaseList() {
+  const container = document.getElementById('dbList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const dbTotalEl = document.getElementById('dbTotalEntries');
+  if (dbTotalEl) dbTotalEl.textContent = analysisDatabase.length;
+
+  const totalSegs = analysisDatabase.reduce((sum, e) => sum + (e.segmentCount || 0), 0);
+  const dbTotalSegsEl = document.getElementById('dbTotalSegments');
+  if (dbTotalSegsEl) dbTotalSegsEl.textContent = totalSegs;
+
+  const withText = analysisDatabase.filter(e =>
+    e.analysisResults && e.analysisResults.some(r => r.text && r.text.trim())
+  ).length;
+  const dbWithTextEl = document.getElementById('dbWithText');
+  if (dbWithTextEl) dbWithTextEl.textContent = withText;
+
+  if (analysisDatabase.length === 0) {
+    container.innerHTML = '<div class="db-item" style="color:#666; justify-content:center; cursor:default;">データがありません</div>';
+    return;
+  }
+
+  analysisDatabase.forEach((entry) => {
+    const item = document.createElement('div');
+    item.className = 'db-item';
+    const dateStr = new Date(entry.createdAt).toLocaleDateString('ja-JP');
+    const segCount = entry.segmentCount || (entry.analysisResults ? entry.analysisResults.length : 0);
+    const textCount = entry.analysisResults
+      ? entry.analysisResults.filter(r => r.text && r.text.trim()).length
+      : 0;
+
+    item.innerHTML =
+      '<div class="db-info">' +
+      '<div class="db-name">' + escapeHtml(entry.name) + '</div>' +
+      '<div class="db-meta">' + dateStr + ' / ' + segCount + 'セグメント / テキスト' + textCount + '件</div>' +
+      '</div>' +
+      '<div class="db-actions">' +
+      '<button class="btn btn-sm" onclick="viewDbEntry(\'' + entry.id + '\')">参照</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteDbEntry(\'' + entry.id + '\')">削除</button>' +
+      '</div>';
+
+    container.appendChild(item);
+  });
+}
+
+function deleteDbEntry(id) {
+  if (!confirm('このデータを削除しますか？')) return;
+  analysisDatabase = analysisDatabase.filter(e => e.id !== id);
+  localStorage.setItem('analysisDatabase', JSON.stringify(analysisDatabase));
+  renderDatabaseList();
+  showToast('削除しました');
+}
+
+function viewDbEntry(id) {
+  const entry = analysisDatabase.find(e => e.id === id);
+  if (!entry) return;
+
+  const detailEl = document.getElementById('dbEntryDetail');
+  if (!detailEl) return;
+  detailEl.classList.add('active');
+
+  const titleEl = document.getElementById('dbEntryTitle');
+  if (titleEl) titleEl.textContent = entry.name;
+
+  const lines = [
+    `音声ファイル: ${entry.audioFileName}`,
+    `CSVファイル: ${entry.csvFileName}`,
+    `登録日: ${new Date(entry.createdAt).toLocaleString('ja-JP')}`,
+    `セグメント数: ${entry.segmentCount || (entry.analysisResults ? entry.analysisResults.length : 0)}`,
+    '',
+    '--- セグメント一覧 ---',
+  ];
+
+  if (entry.analysisResults) {
+    entry.analysisResults.forEach((r, i) => {
+      const textStr = r.text ? ` 「${r.text}」` : '';
+      lines.push(
+        `#${i + 1} ${r.start.toFixed(1)}s～${r.end.toFixed(1)}s` +
+        ` [${r.dialoguePattern ? r.dialoguePattern.label : '?'}]` +
+        ` → [${r.csvPattern ? r.csvPattern.label : '?'}]` +
+        textStr
+      );
+    });
+  }
+
+  const preEl = document.getElementById('dbEntryContent');
+  if (preEl) preEl.textContent = lines.join('\n');
+}
+
+function exportDatabase() {
+  if (analysisDatabase.length === 0) {
+    showToast('エクスポートするデータがありません', true);
+    return;
+  }
+  const json = JSON.stringify(analysisDatabase, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'analysis_database_' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importDatabase(e) {
+  const file = e.target.files ? e.target.files[0] : null;
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (!Array.isArray(imported)) {
+        showToast('無効なファイル形式です', true);
+        return;
+      }
+      const existingIds = new Set(analysisDatabase.map(e => e.id));
+      let added = 0;
+      imported.forEach(entry => {
+        if (entry.id && !existingIds.has(entry.id)) {
+          analysisDatabase.push(entry);
+          existingIds.add(entry.id);
+          added++;
+        }
+      });
+      localStorage.setItem('analysisDatabase', JSON.stringify(analysisDatabase));
+      renderDatabaseList();
+      showToast(`${added}件インポートしました`);
+    } catch (err) {
+      showToast('JSONの解析に失敗しました', true);
+    }
+  };
+  reader.readAsText(file);
+  // Reset input so same file can be re-imported
+  e.target.value = '';
+}
+
+// ============================================================
+// Content-Pattern Mapping & CSV Generation from Text
+// ============================================================
+
+/**
+ * Builds a keyword → CSV pattern frequency map from the analysis database.
+ * Uses Japanese character unigrams + bigrams for tokenization.
+ */
+function buildContentPatternMap() {
+  const keywordMap = {};
+
+  analysisDatabase.forEach(entry => {
+    if (!entry.analysisResults) return;
+    entry.analysisResults.forEach(r => {
+      if (!r.text || !r.text.trim()) return;
+      if (!r.csvPattern || r.csvPattern.type === '無音') return;
+
+      const text = r.text.trim();
+      const tokens = new Set();
+
+      // Character unigrams (Japanese characters)
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF]/.test(ch)) {
+          tokens.add(ch);
+        }
+      }
+      // Bigrams
+      for (let i = 0; i < text.length - 1; i++) {
+        tokens.add(text.slice(i, i + 2));
+      }
+      // Full phrase if short
+      if (text.length <= 12) tokens.add(text);
+
+      const ptype = r.csvPattern.type;
+      tokens.forEach(token => {
+        if (!keywordMap[token]) keywordMap[token] = {};
+        keywordMap[token][ptype] = (keywordMap[token][ptype] || 0) + 1;
+      });
+    });
+  });
+
+  return keywordMap;
+}
+
+/**
+ * Finds the best matching CSV pattern data for a given pattern type from the database.
+ */
+function findPatternDataByType(type) {
+  for (const entry of analysisDatabase) {
+    if (!entry.analysisResults) continue;
+    for (const r of entry.analysisResults) {
+      if (r.csvPattern && r.csvPattern.type === type) {
+        return r.csvPattern;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Generates CSV rows for a speech segment using a given CSV pattern definition.
+ * (Shared logic used by applyTemplate and generateFromText)
+ */
+function generateCsvRowsForSegment(seg, csvPattern) {
+  const segDuration = seg.end - seg.start;
+  const rowCount = csvPattern.rowCount || Math.max(1, Math.round(segDuration * 10));
+  const timeStep = segDuration / rowCount;
+  const rows = [];
+
+  for (let i = 0; i < rowCount; i++) {
+    const time = seg.start + i * timeStep;
+    const timeDs = Math.round(time * 10);
+    let speed = csvPattern.avgSpeed || 0;
+    let direction = 0;
+
+    switch (csvPattern.type) {
+      case 'constant':
+        speed = csvPattern.avgSpeed || 0;
+        break;
+      case 'accel':
+      case 'decel': {
+        const t = i / (rowCount - 1 || 1);
+        speed = (csvPattern.startSpeed || 0) + t * ((csvPattern.endSpeed || 0) - (csvPattern.startSpeed || 0));
+        break;
+      }
+      case 'wave': {
+        const amplitude = (csvPattern.amplitude || 20) / 2;
+        const avg = csvPattern.avgSpeed || 30;
+        speed = avg + amplitude * Math.sin((i / rowCount) * Math.PI * 4);
+        break;
+      }
+      case 'pulse':
+        speed = i % 2 === 0 ? (csvPattern.maxSpeed || 50) : (csvPattern.minSpeed || 10);
+        break;
+      case 'alternate':
+        direction = i % 2;
+        speed = csvPattern.avgSpeed || 30;
+        break;
+      case 'climax': {
+        const peakPos = 0.7;
+        const t = i / (rowCount - 1 || 1);
+        const peakSpeed = csvPattern.peakSpeed || csvPattern.maxSpeed || 80;
+        speed = t <= peakPos
+          ? (csvPattern.minSpeed || 10) + (t / peakPos) * (peakSpeed - (csvPattern.minSpeed || 10))
+          : peakSpeed * (1 - (t - peakPos) / (1 - peakPos));
+        break;
+      }
+      case 'custom':
+        if (csvPattern.speeds && csvPattern.speeds.length > 0) {
+          const srcIdx = Math.min(Math.floor((i / rowCount) * csvPattern.speeds.length), csvPattern.speeds.length - 1);
+          speed = csvPattern.speeds[srcIdx];
+        }
+        break;
+      default:
+        speed = csvPattern.avgSpeed || 0;
+    }
+
+    if (csvPattern.type !== 'alternate') {
+      if (csvPattern.directionPattern === 'all_1') direction = 1;
+      else if (csvPattern.directionPattern === 'alternating') direction = i % 2;
+      else direction = 0;
+    }
+
+    speed = Math.max(0, Math.round(speed));
+    rows.push({ time: timeDs, direction, speed });
+  }
+
+  return rows;
+}
+
+/**
+ * Generates CSV from a text transcript using the analysis database.
+ */
+function generateFromText() {
+  const textArea = document.getElementById('contentGenInput');
+  const inputText = textArea ? textArea.value.trim() : '';
+
+  if (!inputText) {
+    showToast('セリフテキストを入力してください', true);
+    return;
+  }
+  if (analysisDatabase.length === 0) {
+    showToast('データベースが空です。先に分析結果を蓄積してください（Step 6）', true);
+    return;
+  }
+  if (!segments || segments.length === 0) {
+    showToast('先に音声ファイルを読み込み、発話区間を検出してください', true);
+    return;
+  }
+
+  const keywordMap = buildContentPatternMap();
+
+  // Split input text into lines/segments
+  const lines = inputText.split(/[。！？!?\n]/).map(l => l.trim()).filter(l => l.length > 0);
+
+  // Score each line against pattern types
+  const linePatterns = lines.map(line => {
+    const scores = {};
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (keywordMap[ch]) {
+        Object.entries(keywordMap[ch]).forEach(([ptype, count]) => {
+          scores[ptype] = (scores[ptype] || 0) + count;
+        });
+      }
+      if (i < line.length - 1) {
+        const bigram = line.slice(i, i + 2);
+        if (keywordMap[bigram]) {
+          Object.entries(keywordMap[bigram]).forEach(([ptype, count]) => {
+            scores[ptype] = (scores[ptype] || 0) + count * 2; // bigrams weighted higher
+          });
+        }
+      }
+      // Full phrase match
+      if (keywordMap[line]) {
+        Object.entries(keywordMap[line]).forEach(([ptype, count]) => {
+          scores[ptype] = (scores[ptype] || 0) + count * 5;
+        });
+      }
+    }
+
+    let bestType = 'constant';
+    let bestScore = 0;
+    Object.entries(scores).forEach(([ptype, score]) => {
+      if (score > bestScore) { bestScore = score; bestType = ptype; }
+    });
+
+    return {
+      line,
+      type: bestType,
+      patternData: findPatternDataByType(bestType),
+      matchScore: bestScore,
+    };
+  });
+
+  // Generate CSV rows mapped to speech segments
+  generatedCsvRows = [];
+
+  linePatterns.forEach((lp, idx) => {
+    if (!lp.patternData || lp.type === '無音') return;
+    const seg = segments[Math.min(idx, segments.length - 1)];
+    const rows = generateCsvRowsForSegment(seg, lp.patternData);
+    generatedCsvRows.push(...rows);
+  });
+
+  generatedCsvRows.sort((a, b) => a.time - b.time);
+  renderGeneratedCsvPreview();
+  renderContentPatternMap(linePatterns);
+
+  showToast(`${generatedCsvRows.length}行のCSVを生成しました`);
+}
+
+function renderContentPatternMap(linePatterns) {
+  const container = document.getElementById('contentPatternMap');
+  if (!container) return;
+  container.classList.add('active');
+
+  let html = '<div style="color:#e94560;font-size:0.88rem;font-weight:600;margin-bottom:8px;">テキスト → CSVパターン マッピング結果</div>';
+
+  linePatterns.forEach((lp, i) => {
+    const preview = lp.line.length > 20 ? lp.line.slice(0, 20) + '...' : lp.line;
+    const scoreStr = lp.matchScore > 0
+      ? '<span style="color:#666;font-size:0.75rem;">(スコア:' + lp.matchScore + ')</span>'
+      : '<span style="color:#666;font-size:0.75rem;">(デフォルト)</span>';
+    html += '<div class="keyword-row">' +
+      '<span style="color:#888;font-size:0.75rem;min-width:28px;">#' + (i + 1) + '</span>' +
+      '<span class="keyword-tag">' + escapeHtml(preview) + '</span>' +
+      '<span style="color:#666;">→</span>' +
+      '<span class="keyword-pattern">' + lp.type + '</span>' +
+      scoreStr +
+      '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+// ============================================================
+// Initialization
+// ============================================================
 document.addEventListener('DOMContentLoaded', function() {
   initAudioDropZone();
   initCsvDropZone();
   renderTemplateList();
-  
+  renderDatabaseList();
+
   // Detect button
   document.getElementById('detectBtn').addEventListener('click', startSpeechDetection);
-  
+
   // Analyze button
   document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
-  
+
   // Template save
   document.getElementById('saveTemplateBtn').addEventListener('click', saveAsTemplate);
-  
+
   // Template export/import
   document.getElementById('exportTemplatesBtn').addEventListener('click', exportTemplates);
   document.getElementById('importTemplatesBtn').addEventListener('click', function() {
@@ -1944,24 +2789,69 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('importTemplatesInput').addEventListener('change', function(e) {
     importTemplates(e);
   });
-  
+
   // Template apply
   document.getElementById('applyTemplateBtn').addEventListener('click', applyTemplate);
-  
+
   // Download generated CSV
-  document.getElementById('downloadGeneratedBtn').addEventListener('click', downloadGeneratedCsv);
-  
-  // Update range display
-  const thresholdRange = document.getElementById('silenceThreshold');
-  if (thresholdRange) {
-    const display = document.getElementById('thresholdDisplay');
-    if (display) {
-      display.textContent = thresholdRange.value + ' dB';
-      thresholdRange.addEventListener('input', function() {
-        display.textContent = this.value + ' dB';
-      });
+  document.getElementById('downloadCsvBtn').addEventListener('click', downloadGeneratedCsv);
+
+  // Range display updates
+  [
+    { id: 'silenceThreshold', valId: 'silenceThresholdValue', fmt: v => v + ' dB' },
+    { id: 'minSilenceDuration', valId: 'minSilenceDurationValue', fmt: v => parseFloat(v).toFixed(2) + ' s' },
+    { id: 'minSpeechDuration', valId: 'minSpeechDurationValue', fmt: v => parseFloat(v).toFixed(2) + ' s' },
+  ].forEach(({ id, valId, fmt }) => {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(valId);
+    if (el && valEl) {
+      valEl.textContent = fmt(el.value);
+      el.addEventListener('input', function() { valEl.textContent = fmt(this.value); });
     }
-  }
+  });
+
+  // Whisper transcription buttons
+  const transcribeAllBtn = document.getElementById('transcribeAllBtn');
+  if (transcribeAllBtn) transcribeAllBtn.addEventListener('click', autoTranscribeAll);
+
+  const resetWhisperBtn = document.getElementById('resetWhisperBtn');
+  if (resetWhisperBtn) resetWhisperBtn.addEventListener('click', function() {
+    whisperPipeline = null;
+    monoAudio16k = null;
+    const statusEl = document.getElementById('whisperStatus');
+    if (statusEl) { statusEl.textContent = 'モデルをリセットしました'; statusEl.className = 'whisper-status'; }
+    const segProg = document.getElementById('whisperSegProgress');
+    if (segProg) segProg.innerHTML = '';
+    showToast('Whisperモデルをリセットしました');
+  });
+
+  // Database buttons
+  const saveToDbBtn = document.getElementById('saveToDbBtn');
+  if (saveToDbBtn) saveToDbBtn.addEventListener('click', saveToDatabase);
+
+  const exportDbBtn = document.getElementById('exportDbBtn');
+  if (exportDbBtn) exportDbBtn.addEventListener('click', exportDatabase);
+
+  const importDbBtn = document.getElementById('importDbBtn');
+  if (importDbBtn) importDbBtn.addEventListener('click', function() {
+    document.getElementById('importDbInput').click();
+  });
+  const importDbInput = document.getElementById('importDbInput');
+  if (importDbInput) importDbInput.addEventListener('change', importDatabase);
+
+  const clearDbBtn = document.getElementById('clearDbBtn');
+  if (clearDbBtn) clearDbBtn.addEventListener('click', function() {
+    if (confirm('データベースをすべて削除しますか？この操作は取り消せません。')) {
+      analysisDatabase = [];
+      localStorage.setItem('analysisDatabase', '[]');
+      renderDatabaseList();
+      showToast('データベースをクリアしました');
+    }
+  });
+
+  // Content-based CSV generation
+  const generateFromTextBtn = document.getElementById('generateFromTextBtn');
+  if (generateFromTextBtn) generateFromTextBtn.addEventListener('click', generateFromText);
 });
 </script>
 </body>
