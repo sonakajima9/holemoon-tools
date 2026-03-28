@@ -687,9 +687,22 @@ async function scanBtServices() {
   scanBtn.disabled = true;
   showToast('デバイスを検索中...');
   try {
+    const inputServiceUUID = document.getElementById('btServiceUUID').value.trim();
+    const KNOWN_SERVICE_UUIDS = [
+      '0000fff0-0000-1000-8000-00805f9b34fb',
+      '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+      '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+      '0000ffe0-0000-1000-8000-00805f9b34fb',
+      '0000ff00-0000-1000-8000-00805f9b34fb',
+      '0000ab00-0000-1000-8000-00805f9b34fb',
+    ];
+    const optionalServices = inputServiceUUID
+      ? [inputServiceUUID, ...KNOWN_SERVICE_UUIDS.filter(u => u !== inputServiceUUID)]
+      : KNOWN_SERVICE_UUIDS;
+
     const device = await navigator.bluetooth.requestDevice({
       acceptAllDevices: true,
-      optionalServices: []
+      optionalServices
     });
     showToast('GATT 接続中...');
     const server = await connectGattWithTimeout(device.gatt);
@@ -699,25 +712,20 @@ async function scanBtServices() {
 
     // サービス・キャラクタリスティックの取得を試みる
     const candidates = [];
-    const inputServiceUUID = document.getElementById('btServiceUUID').value.trim();
 
-    // まず入力欄の serviceUUID で試みる
+    // getPrimaryServices() で全サービスを取得（optionalServices 宣言済みのため SecurityError は発生しない）
     let services = [];
-    if (inputServiceUUID) {
-      try {
-        const svc = await server.getPrimaryService(inputServiceUUID);
-        services = [svc];
-      } catch (_) {
-        // SecurityError 等の場合は getPrimaryServices() にフォールバック
-      }
-    }
-
-    // フォールバック: getPrimaryServices()（Chrome 実験フラグが有効な環境向け）
-    if (services.length === 0) {
-      try {
-        services = await server.getPrimaryServices();
-      } catch (_) {
-        // 取得できなかった場合は空のまま
+    try {
+      services = await server.getPrimaryServices();
+    } catch (_) {
+      // getPrimaryServices() が失敗した場合、optionalServices の各 UUID を個別に試みる
+      for (const uuid of optionalServices) {
+        try {
+          const svc = await server.getPrimaryService(uuid);
+          services.push(svc);
+        } catch (_) {
+          // このUUIDは存在しないか権限なし
+        }
       }
     }
 
@@ -749,7 +757,7 @@ async function scanBtServices() {
 
     if (candidates.length === 0) {
       server.disconnect();
-      showToast('書き込み可能なキャラクタリスティックが見つかりませんでした', true);
+      showToast('書き込み可能なキャラクタリスティックが見つかりませんでした。サービスUUIDが既知の場合は入力欄に入力してから再度お試しください。', true);
     } else {
       // device と server をモジュールスコープに保持（切断しない）
       bluetoothDevice = device;
