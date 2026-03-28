@@ -79,6 +79,59 @@
   </div>
 </div>
 
+<!-- ===== 作品管理 Panel ===== -->
+<div class="panel" id="workPanel">
+  <h2>音声作品管理（フォルダ）</h2>
+  <div class="btn-row" style="margin-bottom:10px;align-items:center;">
+    <button class="btn btn-secondary" onclick="openWorkFolder()">📁 フォルダを開く</button>
+    <span id="workFolderLabel" class="work-folder-label"></span>
+  </div>
+  <div class="work-columns" id="workColumns" style="display:none;">
+    <div class="work-col">
+      <div class="work-col-title">🎵 音声ファイル</div>
+      <div class="work-file-list" id="workAudioList"></div>
+    </div>
+    <div class="work-col">
+      <div class="work-col-title">📊 CSVファイル</div>
+      <div class="work-file-list" id="workCsvList"></div>
+    </div>
+  </div>
+  <div id="workLinkArea" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #0f3460;">
+    <div class="work-link-row">
+      <span class="link-label">音声:</span>
+      <span id="selectedAudioLabel" class="link-value audio-link">未選択</span>
+      <span class="link-arrow">→</span>
+      <span class="link-label">CSV:</span>
+      <span id="selectedCsvLabel" class="link-value csv-link">未選択</span>
+    </div>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="btn btn-secondary" onclick="previewLinkedTrack()" id="previewLinkBtn" disabled>▶ プレビュー</button>
+      <button class="btn btn-success"   onclick="addLinkToPlaylist()"  id="addToPlaylistBtn" disabled>＋ プレイリストに追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== プレイリスト Panel ===== -->
+<div class="panel" id="playlistPanel">
+  <h2>プレイリスト</h2>
+  <div class="playlist-controls">
+    <select id="playlistSelector" onchange="switchPlaylist(this.value)"></select>
+    <input type="text" id="newPlaylistName" class="playlist-name-input" placeholder="プレイリスト名">
+    <button class="btn btn-primary"   onclick="createPlaylist()">新規作成</button>
+    <button class="btn btn-danger btn-sm" id="deletePlaylistBtn" onclick="deleteActivePlaylist()" disabled title="プレイリストを削除">🗑</button>
+  </div>
+  <div class="playlist-file-controls">
+    <button class="btn btn-secondary" id="savePlaylistBtn" onclick="savePlaylistToFile()" disabled>💾 保存</button>
+    <button class="btn btn-secondary" onclick="loadPlaylistFromFile()">📂 読み込み</button>
+  </div>
+  <div id="playlistItemsArea" style="display:none;margin-top:12px;">
+    <div id="playlistItems" class="playlist-items"></div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-primary" onclick="playPlaylist()">▶ このプレイリストを再生</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Pattern Preview ===== -->
 <div class="panel" id="patternPanel" style="display:none">
   <h2>パターンプレビュー</h2>

@@ -418,3 +418,193 @@ details summary::-webkit-details-marker { color: #e94560; }
   margin-top: 12px;
   text-align: right;
 }
+
+/* ===== Work Manager ===== */
+.work-folder-label {
+  font-size: 0.78rem;
+  color: #888;
+  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 380px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.work-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.work-col {
+  background: #0a0f1e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.work-col-title {
+  font-size: 0.8rem;
+  color: #aaa;
+  padding: 6px 10px;
+  background: #0f3460;
+  border-bottom: 1px solid #1a4a80;
+}
+
+.work-file-list {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.work-file-item {
+  padding: 7px 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border-bottom: 1px solid #0f1f3a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s;
+  color: #ccc;
+}
+
+.work-file-item:last-child { border-bottom: none; }
+.work-file-item:hover { background: rgba(233,69,96,0.1); }
+.work-file-item.selected-audio { background: rgba(233,69,96,0.22); color: #e94560; font-weight: 600; }
+.work-file-item.selected-csv   { background: rgba(52,152,219,0.22); color: #3498db; font-weight: 600; }
+
+.work-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.link-label { color: #888; font-size: 0.78rem; flex-shrink: 0; }
+.link-value {
+  font-size: 0.82rem;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-value.audio-link { color: #e94560; }
+.link-value.csv-link   { color: #3498db; }
+.link-arrow { color: #555; flex-shrink: 0; }
+
+/* ===== Playlist ===== */
+.playlist-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.playlist-name-input {
+  background: #0f3460;
+  border: 1px solid #1a4a80;
+  border-radius: 6px;
+  color: #e0e0e0;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  flex: 1;
+  min-width: 120px;
+}
+
+.playlist-name-input:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+#playlistSelector {
+  flex: 1;
+  min-width: 150px;
+  background: #0f3460;
+  border: 1px solid #1a4a80;
+  border-radius: 6px;
+  color: #e0e0e0;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+#playlistSelector:focus { outline: none; border-color: #e94560; }
+
+.playlist-file-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.playlist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.playlist-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0a0f1e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+
+.playlist-item-num {
+  color: #555;
+  font-size: 0.75rem;
+  width: 22px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.playlist-item-audio {
+  color: #e94560;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.playlist-item-arrow { color: #444; flex-shrink: 0; font-size: 0.75rem; }
+
+.playlist-item-csv {
+  color: #3498db;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.playlist-item-csv.no-csv { color: #555; font-style: italic; }
+
+.playlist-item-del {
+  background: none;
+  border: none;
+  color: #c0392b;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 4px;
+  flex-shrink: 0;
+  opacity: 0.6;
+  line-height: 1;
+}
+.playlist-item-del:hover { opacity: 1; }
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 560px) {
+  .work-columns { grid-template-columns: 1fr; }
+  .playlist-controls { flex-direction: column; align-items: stretch; }
+}

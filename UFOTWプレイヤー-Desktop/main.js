@@ -1,7 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs   = require('fs');
 
 let mainWindow = null;
 let pickerWindow = null;
@@ -22,6 +23,7 @@ function createMainWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'src', 'preload.js'),
     }
   });
 
@@ -107,6 +109,65 @@ ipcMain.on('bluetooth-cancel', () => {
   if (pickerWindow && !pickerWindow.isDestroyed()) {
     pickerWindow.destroy();
   }
+});
+
+// ===== File System / Dialog IPC =====
+ipcMain.handle('dialog:openFolder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: '音声作品フォルダを選択',
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const folderPath = result.filePaths[0];
+  const audioExts  = new Set(['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.wma']);
+  const csvExts    = new Set(['.csv', '.txt']);
+
+  let entries = [];
+  try { entries = fs.readdirSync(folderPath); } catch (_) {}
+
+  return {
+    path: folderPath,
+    audioFiles: entries
+      .filter(f => audioExts.has(path.extname(f).toLowerCase()))
+      .map(f => ({ name: f, path: path.join(folderPath, f) })),
+    csvFiles: entries
+      .filter(f => csvExts.has(path.extname(f).toLowerCase()))
+      .map(f => ({ name: f, path: path.join(folderPath, f) })),
+  };
+});
+
+ipcMain.handle('fs:readText', async (_e, filePath) => {
+  return fs.readFileSync(filePath, 'utf-8');
+});
+
+ipcMain.handle('fs:readBinary', async (_e, filePath) => {
+  const buf = fs.readFileSync(filePath);
+  // Return as plain Uint8Array so contextBridge can clone it
+  return new Uint8Array(buf);
+});
+
+ipcMain.handle('fs:writeText', async (_e, filePath, content) => {
+  fs.writeFileSync(filePath, content, 'utf-8');
+  return true;
+});
+
+ipcMain.handle('dialog:showSave', async (_e, defaultPath) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath,
+    filters: [{ name: 'プレイリスト JSON', extensions: ['json'] }],
+    title: 'プレイリストを保存',
+  });
+  return result.canceled ? null : result.filePath;
+});
+
+ipcMain.handle('dialog:showOpenJson', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'プレイリスト JSON', extensions: ['json'] }],
+    title: 'プレイリストを読み込む',
+  });
+  return (result.canceled || result.filePaths.length === 0) ? null : result.filePaths[0];
 });
 
 // ===== アプリ起動 =====
