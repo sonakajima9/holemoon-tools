@@ -18,7 +18,7 @@ HoleMoonプロジェクトで開発したツール群を公開しているリポ
 
 1. 使用したいツールのフォルダを開く
 2. `index.html` をダウンロードしてブラウザで開く（オフライン動作可）
-3. または [GitHub Pages](#) からオンラインで使用する
+3. または [GitHub Pages](https://sonakajima9.github.io/holemoon-tools/) からオンラインで使用する
 
 ## 更新について
 
