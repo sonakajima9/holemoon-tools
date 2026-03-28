@@ -2,7 +2,7 @@
 # pip install -r requirements_gui.txt
 
 # GUI フレームワーク
-dearpygui>=1.9.0
+dearpygui>=1.9.0,<2
 
 # 音声再生
 sounddevice>=0.4.6
