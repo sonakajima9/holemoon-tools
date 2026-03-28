@@ -2266,41 +2266,36 @@ async function autoTranscribeAll() {
 
     if (progressBar) progressBar.classList.add('active');
 
-    // Step 3: Transcribe each segment
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
+    // Step 3: Transcribe full audio at once (avoids OrtRun errors on short slices)
+    if (statusEl) statusEl.textContent = '文字起こし中（全音声を一括処理）...';
+    if (progressFill) progressFill.style.width = '30%';
 
-      // Update badge
-      const badge = document.getElementById(`wbadge-${i}`);
-      if (badge) badge.className = 'whisper-seg-badge active';
+    const result = await pipe(audio16k, {
+      language: 'japanese',
+      task: 'transcribe',
+      return_timestamps: true,
+      chunk_length_s: 30,
+      stride_length_s: 5,
+    });
 
-      // Update progress bar
-      const pct = Math.round((i / segments.length) * 100);
-      if (progressFill) progressFill.style.width = pct + '%';
-      if (statusEl) statusEl.textContent = `文字起こし中: ${i + 1} / ${segments.length}`;
+    if (progressFill) progressFill.style.width = '80%';
 
-      // Extract segment audio at 16kHz
-      const startSample = Math.floor(seg.start * 16000);
-      const endSample = Math.floor(seg.end * 16000);
-      const segAudio = audio16k.slice(startSample, endSample);
+    const chunks = result.chunks || [];
 
-      // Run Whisper inference
-      const result = await pipe(segAudio, {
-        language: 'japanese',
-        task: 'transcribe',
-      });
-
-      segments[i].text = (result.text || '').trim();
-
-      // Update input field live
+    // Map each chunk to overlapping segments
+    segments.forEach((seg, i) => {
+      const match = chunks.find(c => c.timestamp[1] > seg.start && c.timestamp[0] < seg.end);
+      if (match) {
+        segments[i].text = match.text.trim();
+      }
+      // Update input field
       const input = document.querySelector(`.seg-text-input[data-idx="${i}"]`);
-      if (input) input.value = segments[i].text;
+      if (input) input.value = segments[i].text || '';
 
       // Mark badge done
+      const badge = document.getElementById(`wbadge-${i}`);
       if (badge) badge.className = 'whisper-seg-badge done';
-
-      await yieldToMain(); // keep UI responsive
-    }
+    });
 
     if (progressFill) progressFill.style.width = '100%';
     if (statusEl) {
