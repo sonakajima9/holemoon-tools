@@ -121,6 +121,17 @@ h2 {
   flex-wrap: wrap;
 }
 
+.test-send-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #0f3460;
+}
+.test-send-row .form-group { margin: 0; }
+
 /* --- Drop Zones --- */
 .drop-grid {
   display: grid;
@@ -362,6 +373,33 @@ details summary::-webkit-details-marker { color: #e94560; }
   display: none;
 }
 
+.settings-section-title {
+  font-size: 0.8rem;
+  color: #e94560;
+  margin-top: 14px;
+  margin-bottom: 4px;
+  border-top: 1px solid #0f3460;
+  padding-top: 10px;
+}
+
+.uuid-hint {
+  font-size: 0.75rem;
+  color: #888;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.uuid-hint code {
+  background: #0a0f1e;
+  border: 1px solid #0f3460;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.72rem;
+  color: #7ec8e3;
+  font-family: monospace;
+  user-select: all;
+}
+
 /* --- UUID Select Modal --- */
 #uuidModal {
   display: none;
@@ -468,8 +506,29 @@ details summary::-webkit-details-marker { color: #e94560; }
   <div class="btn-row">
     <button class="btn btn-primary" id="btConnectBtn" onclick="connectBluetooth()">接続</button>
     <button class="btn btn-danger" id="btDisconnectBtn" onclick="disconnectBluetooth()" disabled>切断</button>
-    <button class="btn btn-secondary" onclick="testCommand()">テスト送信</button>
     <button class="btn btn-secondary" id="btScanServicesBtn" onclick="scanBtServices()">UUID自動検出</button>
+  </div>
+  <div class="test-send-row">
+    <div class="form-group">
+      <label>テスト対象</label>
+      <select id="testTarget">
+        <option value="both">両方</option>
+        <option value="left">左・単独</option>
+        <option value="right">右のみ</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>回転方向</label>
+      <select id="testDir">
+        <option value="0">正転</option>
+        <option value="1">逆転</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>速度 (0-100)</label>
+      <input type="number" id="testSpeed" value="50" min="0" max="100" step="1" style="width:70px;">
+    </div>
+    <button class="btn btn-secondary" style="align-self:flex-end;" onclick="testCommand()">テスト送信</button>
   </div>
   <div class="form-group" style="margin-top:8px;">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -599,6 +658,12 @@ details summary::-webkit-details-marker { color: #e94560; }
         </select>
       </div>
     </div>
+
+    <div class="settings-section-title">UUID 参考情報</div>
+    <div class="uuid-hint">
+      Vorze UFO TW / UFO SA / A10 Cyclone SA — サービス: <code>40ee1111-63ec-4b7f-8ce7-712efd55b90e</code> &nbsp;キャラクタリスティック: <code>40ee2222-63ec-4b7f-8ce7-712efd55b90e</code><br>
+      汎用BLE（多数の玩具）— サービス: <code>0000fff0-0000-1000-8000-00805f9b34fb</code> &nbsp;キャラクタリスティック: <code>0000fff1-0000-1000-8000-00805f9b34fb</code>
+    </div>
   </details>
 </div>
 
@@ -689,12 +754,19 @@ async function scanBtServices() {
   try {
     const inputServiceUUID = document.getElementById('btServiceUUID').value.trim();
     const KNOWN_SERVICE_UUIDS = [
-      '0000fff0-0000-1000-8000-00805f9b34fb',
-      '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-      '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-      '0000ffe0-0000-1000-8000-00805f9b34fb',
+      '40ee1111-63ec-4b7f-8ce7-712efd55b90e', // ★ Vorze UFO TW / UFO SA / A10 Cyclone SA / Piston (正式UUID)
+      '0000fff0-0000-1000-8000-00805f9b34fb', // 汎用BLE制御（多数の玩具）
+      '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART Service (NUS)
+      '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Microchip BM70
+      '0000ffe0-0000-1000-8000-00805f9b34fb', // HM-10 BLE Serial
       '0000ff00-0000-1000-8000-00805f9b34fb',
       '0000ab00-0000-1000-8000-00805f9b34fb',
+      '0000ffd0-0000-1000-8000-00805f9b34fb',
+      '0000ffc0-0000-1000-8000-00805f9b34fb',
+      '0000fee7-0000-1000-8000-00805f9b34fb',
+      '0000fee9-0000-1000-8000-00805f9b34fb',
+      'd0611e78-bbb4-4591-a5f8-487910ae4366', // Lovense 新型
+      'f0006900-0451-4000-b000-000000000000', // Lelo / 汎用
     ];
     const optionalServices = inputServiceUUID
       ? [inputServiceUUID, ...KNOWN_SERVICE_UUIDS.filter(u => u !== inputServiceUUID)]
@@ -819,9 +891,30 @@ async function connectBluetooth() {
     showToast('Web Bluetooth API 非対応のブラウザです', true);
     return;
   }
-  const nameFilter = document.getElementById('btNameFilter').value.trim();
+  const nameFilter  = document.getElementById('btNameFilter').value.trim();
   const serviceUUID = document.getElementById('btServiceUUID').value.trim();
   const charUUID    = document.getElementById('btCharUUID').value.trim();
+
+  // 指定UUIDに加えて既知UUIDも optionalServices に含めることで
+  // GATT接続後に他サービスへのアクセス権を確保する
+  const BT_KNOWN_UUIDS = [
+    '40ee1111-63ec-4b7f-8ce7-712efd55b90e',
+    '0000fff0-0000-1000-8000-00805f9b34fb',
+    '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+    '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+    '0000ffe0-0000-1000-8000-00805f9b34fb',
+    '0000ff00-0000-1000-8000-00805f9b34fb',
+    '0000ab00-0000-1000-8000-00805f9b34fb',
+    '0000ffd0-0000-1000-8000-00805f9b34fb',
+    '0000ffc0-0000-1000-8000-00805f9b34fb',
+    '0000fee7-0000-1000-8000-00805f9b34fb',
+    '0000fee9-0000-1000-8000-00805f9b34fb',
+    'd0611e78-bbb4-4591-a5f8-487910ae4366',
+    'f0006900-0451-4000-b000-000000000000',
+  ];
+  const optionalServices = serviceUUID
+    ? [serviceUUID, ...BT_KNOWN_UUIDS.filter(u => u !== serviceUUID)]
+    : BT_KNOWN_UUIDS;
 
   setBtStatus('connecting', '接続中...');
   document.getElementById('btConnectBtn').disabled = true;
@@ -832,7 +925,7 @@ async function connectBluetooth() {
 
     bluetoothDevice = await navigator.bluetooth.requestDevice({
       filters,
-      optionalServices: [serviceUUID]
+      optionalServices,
     });
 
     // 重複登録を防ぐため、一度削除してから追加する
@@ -851,16 +944,15 @@ async function connectBluetooth() {
   } catch (err) {
     document.getElementById('btConnectBtn').disabled = false;
     bluetoothDevice = null;
-    let detail = '';
-    if (err.name === 'NotFoundError') {
-      detail = 'サービスUUIDまたはキャラクタリスティックUUIDがデバイスと一致していません';
-    } else if (err.name === 'NetworkError') {
-      detail = 'デバイスとの通信に失敗しました。デバイスが近くにあるか確認してください';
+    if (err.name !== 'NotFoundError') {
+      const detail = err.name === 'NetworkError'
+        ? 'デバイスとの通信に失敗しました。デバイスが近くにあるか確認してください'
+        : `${err.name}: ${err.message}`;
+      setBtStatus('error', `接続失敗: ${detail}`);
+      showToast(`接続失敗: ${detail}`, true);
     } else {
-      detail = `${err.name}: ${err.message}`;
+      setBtStatus('', '未接続');
     }
-    setBtStatus('error', `接続失敗: ${detail}`);
-    showToast(`接続失敗: ${detail}`, true);
   }
 }
 
@@ -938,17 +1030,28 @@ function setBtStatus(state, label) {
 
 async function testCommand() {
   if (!isConnected) { showToast('未接続です', true); return; }
+
+  const target = document.getElementById('testTarget').value; // 'both' | 'left' | 'right'
+  const dir    = parseInt(document.getElementById('testDir').value) || 0; // 0=正転, 1=逆転
+  const speed  = clamp(parseInt(document.getElementById('testSpeed').value) || 50, 0, 100);
+
+  const dirLabel    = dir ? '逆転' : '正転';
+  const targetLabel = target === 'both' ? '両方' : target === 'left' ? '左' : '右';
+
   try {
     if (csvFormat === 5) {
-      await sendRawCommand(0, 50, 0, 50);
+      const lSpeed = target !== 'right' ? speed : 0;
+      const rSpeed = target !== 'left'  ? speed : 0;
+      const lDir   = target !== 'right' ? dir   : 0;
+      const rDir   = target !== 'left'  ? dir   : 0;
+      await sendRawCommand(lDir, lSpeed, rDir, rSpeed);
+      showToast(`テスト送信（対象:${targetLabel} 方向:${dirLabel} 速度:${speed}）`);
+      setTimeout(() => sendRawCommand(0, 0, 0, 0), 1000);
     } else {
-      await sendRawCommand(0, 50);
+      await sendRawCommand(dir, speed);
+      showToast(`テスト送信（方向:${dirLabel} 速度:${speed}）`);
+      setTimeout(() => sendRawCommand(0, 0), 1000);
     }
-    showToast('テスト送信しました（速度50）');
-    setTimeout(() => {
-      if (csvFormat === 5) sendRawCommand(0, 0, 0, 0);
-      else sendRawCommand(0, 0);
-    }, 1000);
   } catch (err) {
     showToast(`送信失敗: ${err.message}`, true);
   }
@@ -1071,10 +1174,11 @@ function getValuesAtTime(t) {
     return null; // stop
   }
 
-  // Find surrounding
-  let lo = 0;
-  for (let i = 0; i < csvRows.length - 1; i++) {
-    if (csvRows[i].time <= t && csvRows[i + 1].time > t) { lo = i; break; }
+  // Find surrounding rows (binary search)
+  let lo = 0, hi = csvRows.length - 2;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (csvRows[mid].time <= t) lo = mid; else hi = mid - 1;
   }
   const prev = csvRows[lo];
   const next = csvRows[lo + 1];
@@ -1111,6 +1215,7 @@ function loadAudioFile(event) {
   const files = Array.from(event.target.files);
   if (!files.length) return;
   audioQueue = files;
+  csvQueue   = [];
   currentTrackIndex = 0;
   applyAudioTrack(files[0]);
   updateTrackUI();
@@ -1132,9 +1237,14 @@ function applyAudioTrack(file) {
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
   const reader = new FileReader();
   reader.onload = async e => {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
-    drawWaveform(decoded);
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
+      drawWaveform(decoded);
+    } catch (err) {
+      drawWaveformEmpty();
+      showToast(`波形生成失敗: ${err.message}`, true);
+    }
   };
   reader.readAsArrayBuffer(file);
 
@@ -1174,13 +1284,13 @@ function stopPlayback() {
   clearStatusDisplay();
 }
 
-function onAudioEnded() {
-  if (currentTrackIndex < audioQueue.length - 1) {
+async function onAudioEnded() {
+  if (currentTrackIndex < getTrackCount() - 1) {
     stopCommandTimer();
     isPlaying = false;
     document.getElementById('playBtn').classList.remove('playing');
     document.getElementById('playBtn').textContent = '▶';
-    loadTrackAt(currentTrackIndex + 1);
+    await loadTrackAt(currentTrackIndex + 1);
     audioEl.addEventListener('canplay', function() {
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       audioEl.play().then(() => {
@@ -1195,7 +1305,7 @@ function onAudioEnded() {
   }
 }
 
-function loadTrackAt(index) {
+async function loadTrackAt(index) {
   currentTrackIndex = index;
   applyAudioTrack(audioQueue[index]);
   if (csvQueue.length > 0) {
@@ -1204,19 +1314,23 @@ function loadTrackAt(index) {
   updateTrackUI();
 }
 
+function getTrackCount() {
+  return audioQueue.length;
+}
+
 function updateTrackUI() {
-  const total = audioQueue.length;
+  const total = getTrackCount();
   document.getElementById('trackCounter').textContent =
     total > 1 ? `トラック ${currentTrackIndex + 1} / ${total}` : '';
   document.getElementById('prevTrackBtn').disabled = currentTrackIndex <= 0;
   document.getElementById('nextTrackBtn').disabled = total === 0 || currentTrackIndex >= total - 1;
 }
 
-function prevTrack() {
+async function prevTrack() {
   if (currentTrackIndex <= 0) return;
   const wasPlaying = isPlaying;
   stopPlayback();
-  loadTrackAt(currentTrackIndex - 1);
+  await loadTrackAt(currentTrackIndex - 1);
   if (wasPlaying) {
     audioEl.addEventListener('canplay', function() {
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
@@ -1230,11 +1344,11 @@ function prevTrack() {
   }
 }
 
-function nextTrack() {
-  if (currentTrackIndex >= audioQueue.length - 1) return;
+async function nextTrack() {
+  if (currentTrackIndex >= getTrackCount() - 1) return;
   const wasPlaying = isPlaying;
   stopPlayback();
-  loadTrackAt(currentTrackIndex + 1);
+  await loadTrackAt(currentTrackIndex + 1);
   if (wasPlaying) {
     audioEl.addEventListener('canplay', function() {
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
