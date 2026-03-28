@@ -2180,6 +2180,7 @@ async function loadWhisperModel() {
     'automatic-speech-recognition',
     modelName,
     {
+      dtype: 'fp32',
       progress_callback: (data) => {
         if (data.status === 'progress' && progressFill) {
           const pct = Math.round(data.progress || 0);
@@ -2276,7 +2277,6 @@ async function autoTranscribeAll() {
       return_timestamps: true,
       chunk_length_s: 30,
       stride_length_s: 5,
-      dtype: 'fp32',
     });
 
     if (progressFill) progressFill.style.width = '80%';
@@ -2308,11 +2308,12 @@ async function autoTranscribeAll() {
     showToast('文字起こしが完了しました');
 
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     if (statusEl) {
-      statusEl.textContent = 'エラー: ' + err.message;
+      statusEl.textContent = 'エラー: ' + msg;
       statusEl.className = 'whisper-status error';
     }
-    showToast('文字起こしに失敗しました: ' + err.message, true);
+    showToast('文字起こしに失敗しました: ' + msg, true);
     console.error(err);
   } finally {
     if (btn) btn.disabled = false;
