@@ -361,6 +361,70 @@ details summary::-webkit-details-marker { color: #e94560; }
   margin-bottom: 10px;
   display: none;
 }
+
+/* --- UUID Select Modal --- */
+#uuidModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+}
+#uuidModal.show { display: flex; }
+.uuid-modal-box {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 10px;
+  padding: 20px;
+  width: min(560px, 94vw);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.uuid-modal-box h3 {
+  color: #e94560;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+.uuid-modal-box p {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-bottom: 12px;
+}
+.uuid-candidate {
+  background: #0f3460;
+  border: 1px solid #1a4a80;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.uuid-candidate:hover {
+  border-color: #e94560;
+  background: rgba(233,69,96,0.1);
+}
+.uuid-candidate .cand-title {
+  font-size: 0.85rem;
+  color: #e0e0e0;
+  margin-bottom: 4px;
+}
+.uuid-candidate .cand-uuid {
+  font-size: 0.75rem;
+  color: #7ec8e3;
+  font-family: monospace;
+  word-break: break-all;
+}
+.uuid-candidate .cand-props {
+  font-size: 0.72rem;
+  color: #aaa;
+  margin-top: 3px;
+}
+.uuid-modal-footer {
+  margin-top: 12px;
+  text-align: right;
+}
 </style>
 </head>
 <body>
@@ -405,7 +469,7 @@ details summary::-webkit-details-marker { color: #e94560; }
     <button class="btn btn-primary" id="btConnectBtn" onclick="connectBluetooth()">接続</button>
     <button class="btn btn-danger" id="btDisconnectBtn" onclick="disconnectBluetooth()" disabled>切断</button>
     <button class="btn btn-secondary" onclick="testCommand()">テスト送信</button>
-    <button class="btn btn-secondary" id="btScanServicesBtn" onclick="scanBtServices()">サービス検索</button>
+    <button class="btn btn-secondary" id="btScanServicesBtn" onclick="scanBtServices()">UUID自動検出</button>
   </div>
   <div class="form-group" style="margin-top:8px;">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -619,15 +683,87 @@ async function scanBtServices() {
     showToast('Web Bluetooth API 非対応のブラウザです', true);
     return;
   }
+  const scanBtn = document.getElementById('btScanServicesBtn');
+  scanBtn.disabled = true;
+  showToast('デバイスを検索中...');
   try {
     const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+    showToast('サービスを列挙中...');
     const server = await connectGattWithTimeout(device.gatt);
     const services = await server.getPrimaryServices();
-    const uuids = services.map(s => s.uuid).join('\n');
-    alert('検出されたプライマリサービス一覧:\n\n' + uuids);
+
+    // 書き込み可能なキャラクタリスティックを全サービスから収集
+    const candidates = [];
+    for (const service of services) {
+      let chars;
+      try {
+        chars = await service.getCharacteristics();
+      } catch (_) {
+        continue;
+      }
+      for (const char of chars) {
+        const props = char.properties;
+        if (props.write || props.writeWithoutResponse) {
+          const propLabels = [];
+          if (props.write)                propLabels.push('write');
+          if (props.writeWithoutResponse) propLabels.push('writeWithoutResponse');
+          if (props.notify)               propLabels.push('notify');
+          if (props.read)                 propLabels.push('read');
+          candidates.push({
+            serviceUUID: service.uuid,
+            charUUID: char.uuid,
+            propLabels
+          });
+        }
+      }
+    }
+    server.disconnect();
+
+    if (candidates.length === 0) {
+      showToast('書き込み可能なキャラクタリスティックが見つかりませんでした', true);
+    } else if (candidates.length === 1) {
+      applyUuidCandidate(candidates[0]);
+      showToast('UUID を自動入力しました');
+    } else {
+      openUuidModal(candidates);
+    }
   } catch (err) {
-    showToast(`スキャン失敗: ${err.name}: ${err.message}`, true);
+    if (err.name !== 'NotFoundError') {
+      showToast(`スキャン失敗: ${err.name}: ${err.message}`, true);
+    }
+  } finally {
+    scanBtn.disabled = false;
   }
+}
+
+function applyUuidCandidate(candidate) {
+  document.getElementById('btServiceUUID').value = candidate.serviceUUID;
+  document.getElementById('btCharUUID').value    = candidate.charUUID;
+}
+
+function openUuidModal(candidates) {
+  const list = document.getElementById('uuidCandidateList');
+  list.innerHTML = '';
+  candidates.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'uuid-candidate';
+    div.innerHTML = `
+      <div class="cand-title">候補 ${i + 1}</div>
+      <div class="cand-uuid">サービス: ${c.serviceUUID}</div>
+      <div class="cand-uuid">キャラクタリスティック: ${c.charUUID}</div>
+      <div class="cand-props">プロパティ: ${c.propLabels.join(', ')}</div>`;
+    div.addEventListener('click', () => {
+      applyUuidCandidate(c);
+      closeUuidModal();
+      showToast('UUID を自動入力しました');
+    });
+    list.appendChild(div);
+  });
+  document.getElementById('uuidModal').classList.add('show');
+}
+
+function closeUuidModal() {
+  document.getElementById('uuidModal').classList.remove('show');
 }
 
 async function connectBluetooth() {
@@ -1285,5 +1421,17 @@ window.addEventListener('resize', () => {
   if (csvRows.length > 0) drawPattern();
 });
 </script>
+
+<!-- ===== UUID 自動検出モーダル ===== -->
+<div id="uuidModal">
+  <div class="uuid-modal-box">
+    <h3>書き込み可能なキャラクタリスティックが複数見つかりました</h3>
+    <p>使用するキャラクタリスティックを選択してください。選択するとサービスUUIDとキャラクタリスティックUUIDが自動入力されます。</p>
+    <div id="uuidCandidateList"></div>
+    <div class="uuid-modal-footer">
+      <button class="btn btn-secondary" onclick="closeUuidModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
