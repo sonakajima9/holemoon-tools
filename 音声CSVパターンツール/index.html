@@ -2174,7 +2174,7 @@ async function loadWhisperModel() {
   if (progressFill) progressFill.style.width = '0%';
 
   // Load transformers.js via dynamic import (ES module CDN)
-  const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2');
+  const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers');
 
   whisperPipeline = await pipeline(
     'automatic-speech-recognition',
@@ -2224,7 +2224,7 @@ async function resampleToMono16k() {
   source.start(0);
 
   const rendered = await offlineCtx.startRendering();
-  monoAudio16k = rendered.getChannelData(0);
+  monoAudio16k = new Float32Array(rendered.getChannelData(0));
   return monoAudio16k;
 }
 
@@ -2276,6 +2276,7 @@ async function autoTranscribeAll() {
       return_timestamps: true,
       chunk_length_s: 30,
       stride_length_s: 5,
+      dtype: 'fp32',
     });
 
     if (progressFill) progressFill.style.width = '80%';
