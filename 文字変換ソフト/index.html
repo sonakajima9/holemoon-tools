@@ -197,6 +197,7 @@
   }
 
   .file-upload-btn {
+    display: inline-block;
     background: transparent;
     border: 1px solid #444;
     color: #aaa;
@@ -280,6 +281,7 @@
   }
 
   .txt-upload-btn {
+    display: inline-block;
     background: transparent;
     border: 1px solid #444;
     color: #aaa;
@@ -316,7 +318,7 @@
 <div class="file-section">
   <span class="file-label">対応表ファイル:</span>
   <span class="file-name" id="currentFileName">mapping.json（既定）</span>
-  <button class="file-upload-btn" onclick="document.getElementById('fileInput').click()">ファイルを差し替え</button>
+  <label for="fileInput" class="file-upload-btn">ファイルを差し替え</label>
   <button class="file-reset-btn" id="resetBtn" onclick="resetMapping()" style="display:none">既定に戻す</button>
   <input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleFileUpload(event)">
 </div>
@@ -335,7 +337,7 @@
   <div class="panel">
     <div class="txt-upload-row">
       <div class="panel-label" id="inputLabel">入力（ピンクワード）</div>
-      <button class="txt-upload-btn" onclick="document.getElementById('txtFileInput').click()">txtファイルを読み込み</button>
+      <label for="txtFileInput" class="txt-upload-btn">txtファイルを読み込み</label>
       <span class="txt-file-name" id="txtFileName"></span>
       <input type="file" id="txtFileInput" accept=".txt" style="display:none" onchange="handleTxtUpload(event)">
       <span class="drop-hint">※ドラッグ&amp;ドロップも可</span>

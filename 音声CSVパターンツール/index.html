@@ -49,6 +49,7 @@ h1 { font-size: 1.5rem; margin-bottom: 4px; color: #e94560; text-align: center; 
   transition: all 0.2s; margin-bottom: 12px;
 }
 .drop-zone:hover, .drop-zone.drag-over { border-color: #e94560; color: #e94560; }
+.drop-zone { display: block; }
 .drop-zone input[type="file"] { display: none; }
 .drop-zone .drop-icon { font-size: 2rem; margin-bottom: 8px; display: block; }
 .drop-zone .drop-hint { font-size: 0.78rem; color: #666; margin-top: 6px; }
@@ -240,12 +241,12 @@ canvas#timelineCanvas { display: block; }
 <div class="section" id="sectionAudio">
   <h2><span class="step-badge">Step 1</span>音声ファイル読み込み</h2>
 
-  <div class="drop-zone" id="audioDropZone">
+  <label class="drop-zone" id="audioDropZone">
     <span class="drop-icon">🎵</span>
     音声ファイルをドラッグ＆ドロップ、またはクリックして選択
     <span class="drop-hint">対応形式: WAV / MP3 / OGG / M4A / FLAC</span>
     <input type="file" id="audioFileInput" accept=".wav,.mp3,.ogg,.m4a,.flac,audio/wav,audio/mpeg,audio/ogg,audio/mp4,audio/flac">
-  </div>
+  </label>
 
   <div id="audioInfo" class="status"></div>
 
@@ -308,12 +309,12 @@ canvas#timelineCanvas { display: block; }
 <div class="section" id="sectionCSV">
   <h2><span class="step-badge">Step 2</span>CSVファイル読み込み</h2>
 
-  <div class="drop-zone" id="csvDropZone">
+  <label class="drop-zone" id="csvDropZone">
     <span class="drop-icon">📄</span>
     CSVファイルをドラッグ＆ドロップ、またはクリックして選択
     <span class="drop-hint">対応形式: CSV / TSV</span>
     <input type="file" id="csvFileInput" accept=".csv,.tsv,text/csv">
-  </div>
+  </label>
 
   <div id="csvInfo" class="status"></div>
 
@@ -493,9 +494,6 @@ function initAudioDropZone() {
     if (file && file.type.startsWith('audio/')) {
       loadAudioFile(file);
     }
-  });
-  dropZone.addEventListener('click', () => {
-    fileInput.click();
   });
   fileInput.addEventListener('change', e => {
     const file = e.target.files ? e.target.files[0] : null;
@@ -789,10 +787,7 @@ function drawWaveform(currentTime) {
 //         and Template Management
 // ============================================================
 
-// --- Global State ---
-let csvData = [];
-let analysisResults = [];
-let templateLibrary = JSON.parse(localStorage.getItem('patternTemplates') || '[]');
+// --- Global State (Part 3) ---
 let generatedCsvRows = [];
 
 // ============================================================
@@ -830,9 +825,6 @@ function initCsvDropZone() {
       }
     });
 
-    dropZone.addEventListener('click', () => {
-      if (fileInput) fileInput.click();
-    });
   }
 
   if (fileInput) {

@@ -412,6 +412,9 @@ canvas#timelineCanvas {
   color: #e94560;
 }
 
+.audio-drop-zone {
+  display: block;
+}
 .audio-drop-zone input[type="file"] {
   display: none;
 }
@@ -1184,10 +1187,10 @@ canvas#waveformCanvas {
 <!-- Audio Section -->
 <div class="audio-section" id="audioSection">
   <h2>音声ファイル同期</h2>
-  <div class="audio-drop-zone" id="audioDropZone" onclick="document.getElementById('audioFileInput').click()">
+  <label class="audio-drop-zone" id="audioDropZone">
     音声ファイルをドラッグ＆ドロップ、またはクリックして選択
     <input type="file" id="audioFileInput" accept="audio/*" onchange="loadAudioFile(event)">
-  </div>
+  </label>
   <div class="audio-controls" id="audioControls" style="display:none;">
     <button onclick="togglePlayback()" id="playBtn">▶ 再生</button>
     <button onclick="stopPlayback()">■ 停止</button>

@@ -59,6 +59,7 @@ td input[type="number"]::-webkit-inner-spin-button, td input[type="number"]::-we
 /* --- Audio Section --- */
 .audio-drop-zone { border: 2px dashed #0f3460; border-radius: 8px; padding: 20px; text-align: center; color: #888; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; }
 .audio-drop-zone:hover, .audio-drop-zone.drag-over { border-color: #e94560; color: #e94560; }
+.audio-drop-zone { display: block; }
 .audio-drop-zone input[type="file"] { display: none; }
 .audio-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .audio-controls button { padding: 6px 14px; border: 1px solid #e94560; border-radius: 6px; background: transparent; color: #e94560; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
@@ -278,10 +279,10 @@ canvas#timelineCanvas { display: block; }
 <!-- ====== 音声ファイル & セリフ検出 ====== -->
 <div class="section" id="audioSection">
   <h2>音声ファイル読み込み & セリフ検出</h2>
-  <div class="audio-drop-zone" id="audioDropZone" onclick="document.getElementById('audioFileInput').click()">
+  <label class="audio-drop-zone" id="audioDropZone">
     音声ファイルをドラッグ＆ドロップ、またはクリックして選択（WAV / MP3 / OGG / M4A / FLAC）
     <input type="file" id="audioFileInput" accept="audio/*" onchange="loadAudioFile(event)">
-  </div>
+  </label>
   <div class="audio-controls" id="audioControls" style="display:none;">
     <button onclick="togglePlayback()" id="playBtn">▶ 再生</button>
     <button onclick="stopPlayback()">■ 停止</button>
