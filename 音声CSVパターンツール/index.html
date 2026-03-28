@@ -2157,13 +2157,19 @@ let monoAudio16k = null;          // cached 16kHz mono Float32Array (direct chan
 /**
  * Creates (or returns cached) the Whisper Web Worker.
  * The Worker runs transformers.js inference off the main thread.
+ *
+ * Tries a module Worker (static import) first; falls back to a classic Worker
+ * that uses dynamic import() for browsers where { type: 'module' } blob Workers
+ * are unsupported.
  */
 function getOrCreateWhisperWorker() {
   if (whisperWorker) return whisperWorker;
 
-  const workerCode = `
-import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers';
+  const CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
 
+  // Shared inference logic embedded as a string so it can be reused in both
+  // the module Worker and the classic Worker fallback.
+  const workerBody = `
 let pipe = null;
 
 self.onmessage = async function(e) {
@@ -2199,10 +2205,63 @@ self.onmessage = async function(e) {
 };
 `;
 
-  const blob = new Blob([workerCode], { type: 'application/javascript' });
-  const url = URL.createObjectURL(blob);
-  whisperWorker = new Worker(url, { type: 'module' });
-  URL.revokeObjectURL(url);
+  // Module Worker: static import at top level (Chrome 80+, Firefox 114+)
+  const moduleWorkerCode = `import { pipeline } from '${CDN}';\n` + workerBody;
+
+  // Classic Worker fallback: dynamic import() inside the message handler.
+  // Replaces the bare `pipeline` reference with one obtained via dynamic import.
+  const classicWorkerCode = `
+self.onmessage = async function(e) {
+  const { type, audio, modelName } = e.data;
+
+  if (type === 'load') {
+    try {
+      const { pipeline } = await import('${CDN}');
+      self._pipeline = pipeline;
+      const pipe = await pipeline('automatic-speech-recognition', modelName, {
+        dtype: 'q8',
+        progress_callback: (data) => {
+          self.postMessage({ type: 'progress', data });
+        },
+      });
+      self._pipe = pipe;
+      self.postMessage({ type: 'loaded' });
+    } catch (err) {
+      self.postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+    }
+
+  } else if (type === 'transcribe') {
+    try {
+      const result = await self._pipe(audio, {
+        language: 'japanese',
+        task: 'transcribe',
+        return_timestamps: true,
+        chunk_length_s: 30,
+        stride_length_s: 5,
+      });
+      self.postMessage({ type: 'result', result });
+    } catch (err) {
+      self.postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+};
+`;
+
+  // Try module Worker first; catch the synchronous exception thrown by browsers
+  // that do not support { type: 'module' } on blob-URL Workers.
+  try {
+    const blob = new Blob([moduleWorkerCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    whisperWorker = new Worker(url, { type: 'module' });
+    URL.revokeObjectURL(url);
+  } catch (_) {
+    // Fallback: classic Worker using dynamic import()
+    const blob = new Blob([classicWorkerCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    whisperWorker = new Worker(url);
+    URL.revokeObjectURL(url);
+  }
+
   return whisperWorker;
 }
 
