@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Bluetooth デバイスを選択</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+h2 {
+  font-size: 1rem;
+  color: #e94560;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.scanning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-bottom: 12px;
+}
+
+.scan-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #f39c12;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+#deviceList {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 14px;
+}
+
+.device-item {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.device-item:hover {
+  border-color: #e94560;
+  background: rgba(233,69,96,0.08);
+}
+
+.device-name {
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: #e0e0e0;
+}
+
+.device-id {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 3px;
+  font-family: monospace;
+}
+
+.empty-msg {
+  text-align: center;
+  color: #666;
+  font-size: 0.85rem;
+  margin-top: 30px;
+}
+
+.btn-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 8px 20px;
+  background: #0f3460;
+  border: 1px solid #1a4a80;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-cancel:hover { opacity: 0.8; }
+</style>
+</head>
+<body>
+<h2>Bluetooth デバイスを選択</h2>
+<p class="subtitle">接続するデバイスをクリックしてください</p>
+
+<div class="scanning">
+  <div class="scan-dot"></div>
+  <span>スキャン中...</span>
+</div>
+
+<div id="deviceList">
+  <p class="empty-msg">デバイスを検索しています...</p>
+</div>
+
+<div class="btn-row">
+  <button class="btn-cancel" id="cancelBtn">キャンセル</button>
+</div>
+
+<script>
+'use strict';
+
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  window.bluetoothPicker.cancel();
+});
+
+window.bluetoothPicker.onDevices((devices) => {
+  const list = document.getElementById('deviceList');
+
+  if (!devices || devices.length === 0) {
+    list.innerHTML = '<p class="empty-msg">デバイスが見つかりません</p>';
+    return;
+  }
+
+  list.innerHTML = '';
+  devices.forEach((device) => {
+    const item = document.createElement('div');
+    item.className = 'device-item';
+    item.innerHTML = `
+      <div class="device-name">${escapeHtml(device.deviceName || '(名前なし)')}</div>
+      <div class="device-id">${escapeHtml(device.deviceId)}</div>
+    `;
+    item.addEventListener('click', () => {
+      window.bluetoothPicker.select(device.deviceId);
+    });
+    list.appendChild(item);
+  });
+});
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

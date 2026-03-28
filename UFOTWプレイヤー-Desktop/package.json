@@ -1,0 +1,54 @@
+{
+  "name": "ufotw-player-desktop",
+  "version": "1.0.0",
+  "description": "UFOTW プレイヤー デスクトップアプリ",
+  "author": "HoleMoon",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
+    "build-portable": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.holemoon.ufotw-player",
+    "productName": "UFOTWプレイヤー",
+    "files": [
+      "main.js",
+      "src/**/*"
+    ],
+    "win": {
+      "sign": null,
+      "signingHashAlgorithms": null,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "ja"
+      ],
+      "language": "1041"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

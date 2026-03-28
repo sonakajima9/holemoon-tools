@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UFOTW プレイヤー</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<h1>UFOTW プレイヤー</h1>
+
+<!-- ===== Bluetooth Panel ===== -->
+<div class="panel">
+  <h2>Bluetooth 接続</h2>
+  <div id="noBtWarning" class="no-bt-warning">
+    ⚠ Bluetooth が利用できません。PCのBluetoothが有効になっているか確認してください。
+  </div>
+  <div class="bt-status">
+    <div class="bt-dot" id="btDot"></div>
+    <span class="bt-label" id="btLabel">未接続</span>
+  </div>
+  <div class="bt-grid">
+    <div class="form-group">
+      <label>デバイス名フィルター（前方一致・空白で全検索）</label>
+      <input type="text" id="btNameFilter" placeholder="例: UFO" value="UFO">
+    </div>
+    <div class="form-group">
+      <label>サービス UUID</label>
+      <input type="text" id="btServiceUUID" value="0000fff0-0000-1000-8000-00805f9b34fb">
+    </div>
+    <div class="form-group">
+      <label>キャラクタリスティック UUID（書き込み）</label>
+      <input type="text" id="btCharUUID" value="0000fff1-0000-1000-8000-00805f9b34fb">
+    </div>
+    <div class="form-group">
+      <label>コマンドフォーマット</label>
+      <select id="cmdFormat">
+        <option value="lovense">Lovense互換（テキスト "Vibrate:XX;\r\n"）</option>
+        <option value="raw1" selected>1バイト（速度のみ 0x00-0xFF）</option>
+        <option value="raw2">2バイト [方向, 速度]</option>
+        <option value="raw4">4バイト [左Dir, 左速, 右Dir, 右速]</option>
+        <option value="kiiroo">Kiiroo互換 [0x01, speed, 0x00, 0x00]</option>
+      </select>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="btConnectBtn" onclick="connectBluetooth()">接続</button>
+    <button class="btn btn-danger" id="btDisconnectBtn" onclick="disconnectBluetooth()" disabled>切断</button>
+    <button class="btn btn-secondary" onclick="testCommand()">テスト送信</button>
+    <button class="btn btn-secondary" id="btScanServicesBtn" onclick="scanBtServices()">UUID自動検出</button>
+  </div>
+  <div class="form-group" style="margin-top:8px;">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="btAutoReconnect" checked>
+      切断時に自動再接続する（最大5回、指数バックオフ）
+    </label>
+  </div>
+</div>
+
+<!-- ===== File Load Panel ===== -->
+<div class="panel">
+  <h2>ファイル読み込み</h2>
+  <div class="drop-grid">
+    <!-- Audio -->
+    <div class="drop-zone" id="audioDrop">
+      <input type="file" accept="audio/*" multiple onchange="loadAudioFile(event)">
+      <div class="drop-icon">🎵</div>
+      <div class="drop-label">音声ファイルをドロップ<br>（mp3, wav, ogg...）</div>
+      <div class="drop-filename" id="audioFilename"></div>
+    </div>
+    <!-- CSV -->
+    <div class="drop-zone" id="csvDrop">
+      <input type="file" accept=".csv,.txt" multiple onchange="loadCSVFile(event)">
+      <div class="drop-icon">📊</div>
+      <div class="drop-label">CSVファイルをドロップ<br>（UFOTW形式）</div>
+      <div class="drop-filename" id="csvFilename"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Pattern Preview ===== -->
+<div class="panel" id="patternPanel" style="display:none">
+  <h2>パターンプレビュー</h2>
+  <div class="canvas-wrap">
+    <canvas id="patternCanvas"></canvas>
+    <div class="canvas-playhead" id="patternPlayhead"></div>
+  </div>
+  <div class="csv-info" id="csvInfo"></div>
+</div>
+
+<!-- ===== Playback Panel ===== -->
+<div class="panel">
+  <h2>再生</h2>
+  <div class="canvas-wrap">
+    <canvas id="waveformCanvas"></canvas>
+    <div class="canvas-playhead" id="waveformPlayhead"></div>
+  </div>
+  <div class="playback-bar" id="playbackBar" onclick="seekAudio(event)">
+    <div class="playback-fill" id="playbackFill"></div>
+  </div>
+  <div class="playback-time" id="playbackTime">0:00 / 0:00</div>
+  <div class="playback-controls">
+    <button class="ctrl-btn" id="prevTrackBtn" onclick="prevTrack()" disabled title="前のトラック">⏮</button>
+    <button class="ctrl-btn" id="stopBtn" onclick="stopPlayback()" disabled title="停止">⏹</button>
+    <button class="ctrl-btn" id="playBtn" onclick="togglePlayback()" disabled title="再生/一時停止">▶</button>
+    <button class="ctrl-btn" id="nextTrackBtn" onclick="nextTrack()" disabled title="次のトラック">⏭</button>
+  </div>
+  <div id="trackCounter" style="text-align:center;font-size:0.82rem;color:#888;margin-bottom:6px;"></div>
+  <div class="volume-row">
+    <span>🔊</span>
+    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value)">
+    <span id="volumeLabel">100%</span>
+  </div>
+  <audio id="audioElement" style="display:none"></audio>
+</div>
+
+<!-- ===== Live Status ===== -->
+<div class="panel">
+  <h2>送信ステータス</h2>
+  <div class="status-grid" id="statusGrid">
+    <div class="status-card">
+      <div class="card-label">現在時刻</div>
+      <div class="card-value" id="statTime">--</div>
+    </div>
+    <div class="status-card">
+      <div class="card-label">速度（左/単独）</div>
+      <div class="card-value green" id="statSpeedL">--</div>
+    </div>
+    <div class="status-card">
+      <div class="card-label">方向（左/単独）</div>
+      <div class="card-value blue" id="statDirL">--</div>
+    </div>
+    <div class="status-card" id="rightCard" style="display:none">
+      <div class="card-label">速度（右）</div>
+      <div class="card-value green" id="statSpeedR">--</div>
+    </div>
+    <div class="status-card" id="rightDirCard" style="display:none">
+      <div class="card-label">方向（右）</div>
+      <div class="card-value blue" id="statDirR">--</div>
+    </div>
+    <div class="status-card">
+      <div class="card-label">送信回数</div>
+      <div class="card-value" id="statCount">0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Advanced Settings ===== -->
+<div class="panel">
+  <details>
+    <summary>▶ 詳細設定</summary>
+    <div class="settings-grid">
+      <div class="form-group">
+        <label>送信間隔 (ms)</label>
+        <input type="number" id="sendInterval" value="100" min="50" max="1000" step="50">
+      </div>
+      <div class="form-group">
+        <label>補間方式</label>
+        <select id="interpMode">
+          <option value="linear" selected>線形補間</option>
+          <option value="step">ステップ（CSV値そのまま）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>停止時に速度 0 を送信</label>
+        <select id="sendZeroOnStop">
+          <option value="1" selected>はい</option>
+          <option value="0">いいえ</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>CSV終了後の動作</label>
+        <select id="afterCsvEnd">
+          <option value="zero" selected>速度 0 を送信し続ける</option>
+          <option value="stop">送信停止</option>
+          <option value="last">最終値を保持</option>
+        </select>
+      </div>
+    </div>
+  </details>
+</div>
+
+<div id="toast"></div>
+
+<!-- ===== UUID 自動検出モーダル ===== -->
+<div id="uuidModal">
+  <div class="uuid-modal-box">
+    <h3>書き込み可能なキャラクタリスティックが複数見つかりました</h3>
+    <p>使用するキャラクタリスティックを選択してください。選択するとサービスUUIDとキャラクタリスティックUUIDが自動入力されます。</p>
+    <div id="uuidCandidateList"></div>
+    <div class="uuid-modal-footer">
+      <button class="btn btn-secondary" onclick="closeUuidModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>
