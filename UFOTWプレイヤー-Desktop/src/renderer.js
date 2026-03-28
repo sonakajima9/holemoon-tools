@@ -138,6 +138,17 @@ async function findWritableCharacteristic(server) {
     } catch (_) {}
   }
 
+  // --- Vorze既知UUID優先試行（誤キャラクタリスティック選択を防ぐため自動スキャンより前に実行）---
+  const VORZE_SVC  = '40ee1111-63ec-4b7f-8ce7-712efd55b90e';
+  const VORZE_CHAR = '40ee2222-63ec-4b7f-8ce7-712efd55b90e';
+  try {
+    const svc  = await server.getPrimaryService(VORZE_SVC);
+    const char = await svc.getCharacteristic(VORZE_CHAR);
+    if (char.properties.write || char.properties.writeWithoutResponse) {
+      return { serviceUUID: svc.uuid, charUUID: char.uuid, characteristic: char };
+    }
+  } catch (_) {}
+
   // --- 自動スキャン ---
   let services = [];
   try {
@@ -349,14 +360,14 @@ async function testCommand() {
       await sendRawCommand(lDir, lSpeed, rDir, rSpeed);
       showToast(`テスト送信OK（${targetLabel} ${dirLabel} ${speed}） → [${hex}]`);
       document.getElementById('testStopBtn').disabled = false;
-      testStopTimer = setTimeout(() => stopTestCommand(), 1000);
+      testStopTimer = setTimeout(() => stopTestCommand(), 3000);
     } else {
       const bytes = buildCommandBytes(dir, speed, 0, 0);
       const hex   = Array.from(bytes).map(b => '0x' + b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
       await sendRawCommand(dir, speed);
       showToast(`テスト送信OK（${dirLabel} ${speed}） → [${hex}]`);
       document.getElementById('testStopBtn').disabled = false;
-      testStopTimer = setTimeout(() => stopTestCommand(), 1000);
+      testStopTimer = setTimeout(() => stopTestCommand(), 3000);
     }
   } catch (err) {
     showToast(`送信失敗: ${err.message}`, true);
@@ -420,10 +431,14 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
 async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   if (!gattCharacteristic) return;
   const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
-  if (gattCharacteristic.properties.writeWithoutResponse) {
+  const writeMode = document.getElementById('writeModeSelect')?.value || 'response';
+
+  if (writeMode === 'withoutResponse' && gattCharacteristic.properties.writeWithoutResponse) {
     await gattCharacteristic.writeValueWithoutResponse(bytes);
-  } else {
-    await gattCharacteristic.writeValue(bytes);
+  } else if (gattCharacteristic.properties.write) {
+    await gattCharacteristic.writeValueWithResponse(bytes);
+  } else if (gattCharacteristic.properties.writeWithoutResponse) {
+    await gattCharacteristic.writeValueWithoutResponse(bytes);
   }
 }
 

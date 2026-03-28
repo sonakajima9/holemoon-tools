@@ -245,6 +245,13 @@
           <option value="last">最終値を保持</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>GATT 書き込みモード</label>
+        <select id="writeModeSelect">
+          <option value="response" selected>WriteWithResponse（推奨・確実）</option>
+          <option value="withoutResponse">WriteWithoutResponse（低遅延）</option>
+        </select>
+      </div>
     </div>
 
     <div class="settings-section-title">Bluetooth UUID 手動設定（自動検出が失敗する場合）</div>
