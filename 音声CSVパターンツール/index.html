@@ -2520,11 +2520,36 @@ async function autoTranscribeAll() {
 
     const chunks = result.chunks || [];
 
-    // Map each chunk to overlapping segments
+    // Assign each chunk exclusively to the segment with maximum time overlap.
+    // This prevents the same chunk from being duplicated across multiple segments
+    // (which caused identical text in consecutive segments), and also allows
+    // multiple chunks to accumulate into a single segment (which handles long
+    // utterances that Whisper splits into several chunks).
+    const segTexts = new Array(segments.length).fill('');
+
+    chunks.forEach((chunk) => {
+      const [cStart, cEnd] = chunk.timestamp;
+      let bestIdx = -1;
+      let bestOverlap = 0;
+
+      segments.forEach((seg, si) => {
+        const overlapStart = Math.max(cStart, seg.start);
+        const overlapEnd   = Math.min(cEnd,   seg.end);
+        const overlap = Math.max(0, overlapEnd - overlapStart);
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap;
+          bestIdx = si;
+        }
+      });
+
+      if (bestIdx >= 0) {
+        segTexts[bestIdx] += chunk.text.trim();
+      }
+    });
+
     segments.forEach((seg, i) => {
-      const match = chunks.find(c => c.timestamp[1] > seg.start && c.timestamp[0] < seg.end);
-      if (match) {
-        segments[i].text = match.text.trim();
+      if (segTexts[i]) {
+        segments[i].text = segTexts[i];
       }
       // Update input field
       const input = document.querySelector(`.seg-text-input[data-idx="${i}"]`);
