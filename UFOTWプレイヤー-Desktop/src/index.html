@@ -20,7 +20,6 @@
     <div class="bt-dot" id="btDot"></div>
     <span class="bt-label" id="btLabel">未接続</span>
   </div>
-  <div id="connectedCharInfo" style="display:none;font-size:11px;color:#aaa;margin-top:4px;word-break:break-all;"></div>
   <div class="bt-grid">
     <div class="form-group">
       <label>デバイス名フィルター（前方一致・空白で全検索）</label>
@@ -246,21 +245,6 @@
           <option value="last">最終値を保持</option>
         </select>
       </div>
-    </div>
-
-    <div class="settings-section-title">Bluetooth 書き込み方式</div>
-    <div class="settings-grid">
-      <div class="form-group">
-        <label>GATT 書き込みモード</label>
-        <select id="writeMode">
-          <option value="auto">自動（デバイスプロパティに従う）</option>
-          <option value="no-response">WriteWithoutResponse（応答なし・低遅延）</option>
-          <option value="response" selected>WriteWithResponse（応答あり・確実）★推奨</option>
-        </select>
-      </div>
-    </div>
-    <div class="uuid-hint" style="margin-bottom:8px;">
-      デバイスが動かない場合は「WriteWithResponse（応答あり）」に切り替えてお試しください。
     </div>
 
     <div class="settings-section-title">Bluetooth UUID 手動設定（自動検出が失敗する場合）</div>

@@ -73,10 +73,6 @@ window.addEventListener('DOMContentLoaded', () => {
   setupDragDrop('audioDrop', 'audio/*', loadAudioFile);
   setupDragDrop('csvDrop', '.csv,.txt', loadCSVFile);
 
-  // ドロップゾーン外へのファイルD&DでElectronがfile://URLへナビゲートするのを防ぐ
-  document.addEventListener('dragover', e => e.preventDefault());
-  document.addEventListener('drop',     e => e.preventDefault());
-
   audioEl.addEventListener('timeupdate', onTimeUpdate);
   audioEl.addEventListener('ended', onAudioEnded);
   audioEl.addEventListener('error', () => {
@@ -136,19 +132,6 @@ async function findWritableCharacteristic(server) {
     try {
       const svc  = await server.getPrimaryService(customSvcUUID);
       const char = await svc.getCharacteristic(customCharUUID);
-      if (char.properties.write || char.properties.writeWithoutResponse) {
-        return { serviceUUID: svc.uuid, charUUID: char.uuid, characteristic: char };
-      }
-    } catch (_) {}
-  }
-
-  // --- Vorze 既知 UUID を優先的に直接取得（自動スキャンより前に試みる）---
-  if (!customSvcUUID) {
-    const VORZE_SVC  = '40ee1111-63ec-4b7f-8ce7-712efd55b90e';
-    const VORZE_CHAR = '40ee2222-63ec-4b7f-8ce7-712efd55b90e';
-    try {
-      const svc  = await server.getPrimaryService(VORZE_SVC);
-      const char = await svc.getCharacteristic(VORZE_CHAR);
       if (char.properties.write || char.properties.writeWithoutResponse) {
         return { serviceUUID: svc.uuid, charUUID: char.uuid, characteristic: char };
       }
@@ -241,17 +224,7 @@ async function connectBluetooth() {
     isUserDisconnected    = false;
     reconnectAttempts     = 0;
 
-    const charProps = [];
-    if (found.characteristic.properties.write)                charProps.push('write');
-    if (found.characteristic.properties.writeWithoutResponse) charProps.push('writeWithoutResponse');
-    const propStr = charProps.length ? charProps.join(' / ') : '不明';
-
     setBtStatus('connected', `接続済み: ${device.name || '(名前なし)'}`);
-    const charInfoEl = document.getElementById('connectedCharInfo');
-    if (charInfoEl) {
-      charInfoEl.textContent = `Char: ${found.charUUID} [${propStr}]`;
-      charInfoEl.style.display = '';
-    }
     document.getElementById('btConnectBtn').disabled    = true;
     document.getElementById('btDisconnectBtn').disabled = false;
     showToast('Bluetooth 接続しました');
@@ -292,8 +265,6 @@ function onBtDisconnected() {
     isUserDisconnected = false;
     reconnectAttempts = 0;
     setBtStatus('', '未接続');
-    const charInfoEl = document.getElementById('connectedCharInfo');
-    if (charInfoEl) { charInfoEl.textContent = ''; charInfoEl.style.display = 'none'; }
     document.getElementById('btConnectBtn').disabled = false;
     document.getElementById('btDisconnectBtn').disabled = true;
     showToast('Bluetooth 切断されました');
@@ -378,14 +349,14 @@ async function testCommand() {
       await sendRawCommand(lDir, lSpeed, rDir, rSpeed);
       showToast(`テスト送信OK（${targetLabel} ${dirLabel} ${speed}） → [${hex}]`);
       document.getElementById('testStopBtn').disabled = false;
-      testStopTimer = setTimeout(() => stopTestCommand(), 3000);
+      testStopTimer = setTimeout(() => stopTestCommand(), 1000);
     } else {
       const bytes = buildCommandBytes(dir, speed, 0, 0);
       const hex   = Array.from(bytes).map(b => '0x' + b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
       await sendRawCommand(dir, speed);
       showToast(`テスト送信OK（${dirLabel} ${speed}） → [${hex}]`);
       document.getElementById('testStopBtn').disabled = false;
-      testStopTimer = setTimeout(() => stopTestCommand(), 3000);
+      testStopTimer = setTimeout(() => stopTestCommand(), 1000);
     }
   } catch (err) {
     showToast(`送信失敗: ${err.message}`, true);
@@ -414,20 +385,17 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
 
   switch (fmt) {
     case 'vorze_tw': {
-      // UFO TW: [0x01, leftByte, rightByte]
-      // 各バイト: (direction << 7) | speed(0-99)
-      // 仕様: 速度の有効範囲は 0–99。100以上はデバイスが無視する（STPIHKAL仕様）
-      const ls = Math.min(99, Math.round(Math.max(0, speed)));
-      const rs = Math.min(99, Math.round(Math.max(0, rightSpeed || 0)));
-      const leftByte  = ((dir & 0x01) << 7) | ls;
+      // UFO TW / UFO SA: [0x01, leftByte, rightByte]
+      // 各バイト: (direction << 7) | speed(0-100)
+      const rs = Math.round(Math.min(100, Math.max(0, rightSpeed || 0)));
+      const leftByte  = ((dir & 0x01) << 7) | speed;
       const rightByte = (((rightDir || 0) & 0x01) << 7) | rs;
       return new Uint8Array([0x01, leftByte, rightByte]);
     }
     case 'vorze_sa': {
-      // A10 Cyclone SA / Piston / UFO SA: [0x01, motorByte]
-      // motorByte: (direction << 7) | speed(0-99)
-      const ms = Math.min(99, Math.round(Math.max(0, speed)));
-      const motorByte = ((dir & 0x01) << 7) | ms;
+      // A10 Cyclone SA / Piston: [0x01, motorByte]
+      // motorByte: (direction << 7) | speed(0-100)
+      const motorByte = ((dir & 0x01) << 7) | speed;
       return new Uint8Array([0x01, motorByte]);
     }
     case 'lovense': {
@@ -452,33 +420,10 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
 async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   if (!gattCharacteristic) return;
   const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
-  const writeMode = document.getElementById('writeMode')?.value ?? 'auto';
-
-  // writeValueWithResponse が使えるか確認（Electron 28 では存在するが念のため）
-  const canWriteWithResponse    = typeof gattCharacteristic.writeValueWithResponse    === 'function';
-  const canWriteWithoutResponse = typeof gattCharacteristic.writeValueWithoutResponse === 'function';
-
-  if (writeMode === 'response') {
-    if (canWriteWithResponse) {
-      await gattCharacteristic.writeValueWithResponse(bytes);
-    } else {
-      await gattCharacteristic.writeValue(bytes);
-    }
-  } else if (writeMode === 'no-response') {
-    if (canWriteWithoutResponse) {
-      await gattCharacteristic.writeValueWithoutResponse(bytes);
-    } else {
-      await gattCharacteristic.writeValue(bytes);
-    }
+  if (gattCharacteristic.properties.writeWithoutResponse) {
+    await gattCharacteristic.writeValueWithoutResponse(bytes);
   } else {
-    // auto: writeWithoutResponse プロパティに従う
-    if (gattCharacteristic.properties.writeWithoutResponse && canWriteWithoutResponse) {
-      await gattCharacteristic.writeValueWithoutResponse(bytes);
-    } else if (canWriteWithResponse) {
-      await gattCharacteristic.writeValueWithResponse(bytes);
-    } else {
-      await gattCharacteristic.writeValue(bytes);
-    }
+    await gattCharacteristic.writeValue(bytes);
   }
 }
 
@@ -1008,16 +953,12 @@ async function applyAudioFromPath(audioPath, audioName) {
     showToast(`音声: ${audioName}`);
 
     // 波形描画は別途非同期で実行（再生開始をブロックしない）
-    // fetch(fileUrl) を使用して IPC バイナリ転送によるフリーズを回避
     if (audioCtx) { audioCtx.close(); audioCtx = null; }
     drawWaveformEmpty();
     (async () => {
       try {
-        const response = await fetch(fileUrl);
-        const arrayBuffer = await response.arrayBuffer();
-        // 100MB 超は decodeAudioData がメインスレッドを長時間占有するためスキップ
-        const MAX_WAVEFORM_FILE = 100 * 1024 * 1024;
-        if (arrayBuffer.byteLength > MAX_WAVEFORM_FILE) return;
+        const uint8 = await window.electronAPI.readBinaryFile(audioPath);
+        const arrayBuffer = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
         drawWaveform(decoded);
