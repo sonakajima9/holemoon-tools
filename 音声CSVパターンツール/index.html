@@ -345,6 +345,30 @@ canvas#timelineCanvas { display: block; }
 }
 .whisper-seg-badge.done { background: rgba(39,174,96,0.2); color: #27ae60; }
 .whisper-seg-badge.active { background: rgba(233,69,96,0.2); color: #e94560; }
+
+/* ---- Audio Player Controls ---- */
+.audio-player {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 10px 14px; margin-bottom: 12px; display: none;
+}
+.audio-player.active { display: block; }
+.audio-player-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.player-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: 2px solid #e94560;
+  background: transparent; color: #e94560; font-size: 0.9rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; flex-shrink: 0; line-height: 1; padding: 0;
+}
+.player-btn:hover { background: #e94560; color: #fff; }
+.player-btn.playing { background: #e94560; color: #fff; }
+.player-seek {
+  flex: 1; min-width: 80px; height: 4px; accent-color: #e94560;
+  cursor: pointer; background: #0f3460; border-radius: 2px;
+}
+.player-time {
+  font-size: 0.8rem; color: #e94560; font-family: 'Consolas', monospace;
+  white-space: nowrap; min-width: 130px; text-align: right;
+}
 </style>
 </head>
 <body>
@@ -402,6 +426,16 @@ canvas#timelineCanvas { display: block; }
   <!-- Waveform Canvas -->
   <div class="waveform-wrap" id="waveformWrap">
     <canvas id="waveformCanvas" width="900" height="200"></canvas>
+  </div>
+
+  <!-- Audio Player Controls -->
+  <div class="audio-player" id="audioPlayer">
+    <div class="audio-player-row">
+      <button class="player-btn" id="playPauseBtn" title="再生 / 一時停止">▶</button>
+      <button class="player-btn" id="stopBtn" title="停止">■</button>
+      <input type="range" class="player-seek" id="playerSeek" min="0" max="100" step="0.01" value="0">
+      <span class="player-time" id="playerTime">00:00.00 / 00:00.00</span>
+    </div>
   </div>
 
   <!-- Speech Segments Results Table -->
@@ -651,6 +685,8 @@ let currentAudioFileName = '';
 let currentCsvFileName = '';
 
 let waveformData = null;
+let playStartCtxTime = 0;  // audioContext.currentTime when last playback started
+let playerRafId = null;    // requestAnimationFrame ID for player loop
 
 // ====== Helpers ======
 function yieldToMain() {
@@ -740,6 +776,13 @@ function loadAudioFile(file) {
       if (detectBtn) detectBtn.disabled = false;
 
       drawWaveform();
+
+      // Show audio player
+      const audioPlayer = document.getElementById('audioPlayer');
+      if (audioPlayer) audioPlayer.classList.add('active');
+      const playerSeek = document.getElementById('playerSeek');
+      if (playerSeek) { playerSeek.value = 0; }
+      updatePlayerTimeDisplay(0);
 
       if (infoEl) infoEl.textContent = `読み込み完了: ${file.name} (${formatTimeFull(buffer.duration)})`;
       showToast('音声ファイルを読み込みました');
@@ -929,9 +972,37 @@ function renderSegmentResults() {
 }
 
 // ====== Playback ======
+function updatePlayerTimeDisplay(currentTime) {
+  const playerTime = document.getElementById('playerTime');
+  if (playerTime && audioBuffer) {
+    playerTime.textContent = `${formatTimeFull(currentTime)} / ${formatTimeFull(audioBuffer.duration)}`;
+  }
+}
+
+function updatePlayerLoop() {
+  if (!isPlaying || !audioBuffer || !audioContext) return;
+  const elapsed = audioContext.currentTime - playStartCtxTime;
+  const currentAudioTime = Math.min(playOffset + elapsed, audioBuffer.duration);
+
+  const playerSeek = document.getElementById('playerSeek');
+  if (playerSeek) playerSeek.value = (currentAudioTime / audioBuffer.duration) * 100;
+  updatePlayerTimeDisplay(currentAudioTime);
+  drawWaveform(currentAudioTime);
+
+  playerRafId = requestAnimationFrame(updatePlayerLoop);
+}
+
 function playFromTime(time) {
   if (!audioBuffer || !audioContext) return;
-  stopPlayback();
+  if (audioContext.state === 'suspended') audioContext.resume();
+
+  // Stop current source without full reset
+  if (isPlaying && audioSource) {
+    audioSource.onended = null;
+    try { audioSource.stop(); } catch(e) {}
+    isPlaying = false;
+  }
+  if (playerRafId) { cancelAnimationFrame(playerRafId); playerRafId = null; }
 
   audioSource = audioContext.createBufferSource();
   audioSource.buffer = audioBuffer;
@@ -939,19 +1010,64 @@ function playFromTime(time) {
   audioSource.onended = function() {
     isPlaying = false;
     playOffset = 0;
+    if (playerRafId) { cancelAnimationFrame(playerRafId); playerRafId = null; }
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    if (playPauseBtn) { playPauseBtn.textContent = '▶'; playPauseBtn.classList.remove('playing'); }
+    drawWaveform(0);
+    updatePlayerTimeDisplay(0);
+    const playerSeek = document.getElementById('playerSeek');
+    if (playerSeek) playerSeek.value = 0;
   };
+
   playOffset = time;
+  playStartCtxTime = audioContext.currentTime;
   audioSource.start(0, time);
   isPlaying = true;
+
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  if (playPauseBtn) { playPauseBtn.textContent = '⏸'; playPauseBtn.classList.add('playing'); }
+
+  playerRafId = requestAnimationFrame(updatePlayerLoop);
 }
 
 function stopPlayback() {
   if (isPlaying && audioSource) {
     audioSource.onended = null;
-    audioSource.stop();
+    try { audioSource.stop(); } catch(e) {}
     isPlaying = false;
   }
+  if (playerRafId) { cancelAnimationFrame(playerRafId); playerRafId = null; }
   playOffset = 0;
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  if (playPauseBtn) { playPauseBtn.textContent = '▶'; playPauseBtn.classList.remove('playing'); }
+  const playerSeek = document.getElementById('playerSeek');
+  if (playerSeek) playerSeek.value = 0;
+  drawWaveform(0);
+  updatePlayerTimeDisplay(0);
+}
+
+function togglePlayPause() {
+  if (!audioBuffer) return;
+  if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioContext.state === 'suspended') audioContext.resume();
+
+  if (isPlaying) {
+    // Pause: capture current position
+    const elapsed = audioContext.currentTime - playStartCtxTime;
+    const pausedAt = Math.min(playOffset + elapsed, audioBuffer.duration);
+    if (audioSource) { audioSource.onended = null; try { audioSource.stop(); } catch(e) {} }
+    isPlaying = false;
+    if (playerRafId) { cancelAnimationFrame(playerRafId); playerRafId = null; }
+    playOffset = pausedAt;
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    if (playPauseBtn) { playPauseBtn.textContent = '▶'; playPauseBtn.classList.remove('playing'); }
+    drawWaveform(pausedAt);
+    updatePlayerTimeDisplay(pausedAt);
+    const playerSeek = document.getElementById('playerSeek');
+    if (playerSeek) playerSeek.value = (pausedAt / audioBuffer.duration) * 100;
+  } else {
+    playFromTime(playOffset);
+  }
 }
 
 // ====== Waveform Drawing ======
@@ -2971,6 +3087,52 @@ document.addEventListener('DOMContentLoaded', function() {
   // Content-based CSV generation
   const generateFromTextBtn = document.getElementById('generateFromTextBtn');
   if (generateFromTextBtn) generateFromTextBtn.addEventListener('click', generateFromText);
+
+  // Audio player controls
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  if (playPauseBtn) playPauseBtn.addEventListener('click', togglePlayPause);
+
+  const stopBtn = document.getElementById('stopBtn');
+  if (stopBtn) stopBtn.addEventListener('click', stopPlayback);
+
+  const playerSeek = document.getElementById('playerSeek');
+  if (playerSeek) {
+    // Update while dragging
+    playerSeek.addEventListener('input', function() {
+      if (!audioBuffer) return;
+      const newTime = (parseFloat(this.value) / 100) * audioBuffer.duration;
+      if (isPlaying) {
+        playFromTime(newTime);
+      } else {
+        playOffset = newTime;
+        drawWaveform(newTime);
+        updatePlayerTimeDisplay(newTime);
+      }
+    });
+  }
+
+  // Waveform canvas click to seek
+  const waveformWrap = document.getElementById('waveformWrap');
+  if (waveformWrap) {
+    waveformWrap.addEventListener('click', function(e) {
+      if (!audioBuffer) return;
+      const canvas = document.getElementById('waveformCanvas');
+      if (!canvas) return;
+      const rect = waveformWrap.getBoundingClientRect();
+      const x = e.clientX - rect.left + waveformWrap.scrollLeft;
+      const ratio = Math.max(0, Math.min(1, x / canvas.width));
+      const newTime = ratio * audioBuffer.duration;
+      const playerSeekEl = document.getElementById('playerSeek');
+      if (playerSeekEl) playerSeekEl.value = ratio * 100;
+      if (isPlaying) {
+        playFromTime(newTime);
+      } else {
+        playOffset = newTime;
+        drawWaveform(newTime);
+        updatePlayerTimeDisplay(newTime);
+      }
+    });
+  }
 });
 </script>
 </body>
