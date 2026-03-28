@@ -405,6 +405,7 @@ details summary::-webkit-details-marker { color: #e94560; }
     <button class="btn btn-primary" id="btConnectBtn" onclick="connectBluetooth()">接続</button>
     <button class="btn btn-danger" id="btDisconnectBtn" onclick="disconnectBluetooth()" disabled>切断</button>
     <button class="btn btn-secondary" onclick="testCommand()">テスト送信</button>
+    <button class="btn btn-secondary" id="btScanServicesBtn" onclick="scanBtServices()">サービス検索</button>
   </div>
   <div class="form-group" style="margin-top:8px;">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -420,14 +421,14 @@ details summary::-webkit-details-marker { color: #e94560; }
   <div class="drop-grid">
     <!-- Audio -->
     <div class="drop-zone" id="audioDrop">
-      <input type="file" accept="audio/*" onchange="loadAudioFile(event)">
+      <input type="file" accept="audio/*" multiple onchange="loadAudioFile(event)">
       <div class="drop-icon">🎵</div>
       <div class="drop-label">音声ファイルをドロップ<br>（mp3, wav, ogg...）</div>
       <div class="drop-filename" id="audioFilename"></div>
     </div>
     <!-- CSV -->
     <div class="drop-zone" id="csvDrop">
-      <input type="file" accept=".csv,.txt" onchange="loadCSVFile(event)">
+      <input type="file" accept=".csv,.txt" multiple onchange="loadCSVFile(event)">
       <div class="drop-icon">📊</div>
       <div class="drop-label">CSVファイルをドロップ<br>（UFOTW形式）</div>
       <div class="drop-filename" id="csvFilename"></div>
@@ -457,9 +458,12 @@ details summary::-webkit-details-marker { color: #e94560; }
   </div>
   <div class="playback-time" id="playbackTime">0:00 / 0:00</div>
   <div class="playback-controls">
+    <button class="ctrl-btn" id="prevTrackBtn" onclick="prevTrack()" disabled title="前のトラック">⏮</button>
     <button class="ctrl-btn" id="stopBtn" onclick="stopPlayback()" disabled title="停止">⏹</button>
     <button class="ctrl-btn" id="playBtn" onclick="togglePlayback()" disabled title="再生/一時停止">▶</button>
+    <button class="ctrl-btn" id="nextTrackBtn" onclick="nextTrack()" disabled title="次のトラック">⏭</button>
   </div>
+  <div id="trackCounter" style="text-align:center;font-size:0.82rem;color:#888;margin-bottom:6px;"></div>
   <div class="volume-row">
     <span>🔊</span>
     <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" oninput="setVolume(this.value)">
@@ -562,6 +566,10 @@ let commandTimer = null;
 let sendCount = 0;
 let isPlaying = false;
 
+let audioQueue = [];
+let csvQueue = [];
+let currentTrackIndex = 0;
+
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', () => {
   audioEl = document.getElementById('audioElement');
@@ -580,6 +588,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('patternCanvas').addEventListener('click', seekFromPattern);
 
   drawWaveformEmpty();
+  updateTrackUI();
 });
 
 // ===== Drag & Drop helpers =====
@@ -590,8 +599,8 @@ function setupDragDrop(zoneId, accept, handler) {
   zone.addEventListener('drop', e => {
     e.preventDefault();
     zone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) handler({ target: { files: [file] } });
+    const files = e.dataTransfer.files;
+    if (files.length) handler({ target: { files } });
   });
 }
 
@@ -603,6 +612,22 @@ function connectGattWithTimeout(gatt, ms = 10000) {
       setTimeout(() => reject(Object.assign(new Error('接続タイムアウト（10秒）'), { name: 'TimeoutError' })), ms)
     )
   ]);
+}
+
+async function scanBtServices() {
+  if (!navigator.bluetooth) {
+    showToast('Web Bluetooth API 非対応のブラウザです', true);
+    return;
+  }
+  try {
+    const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+    const server = await connectGattWithTimeout(device.gatt);
+    const services = await server.getPrimaryServices();
+    const uuids = services.map(s => s.uuid).join('\n');
+    alert('検出されたプライマリサービス一覧:\n\n' + uuids);
+  } catch (err) {
+    showToast(`スキャン失敗: ${err.name}: ${err.message}`, true);
+  }
 }
 
 async function connectBluetooth() {
@@ -618,7 +643,7 @@ async function connectBluetooth() {
   document.getElementById('btConnectBtn').disabled = true;
   try {
     const filters = nameFilter
-      ? [{ namePrefix: nameFilter, services: [serviceUUID] }]
+      ? [{ namePrefix: nameFilter }]
       : [{ services: [serviceUUID] }];
 
     bluetoothDevice = await navigator.bluetooth.requestDevice({
@@ -783,23 +808,31 @@ async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
 
 // ===== CSV =====
 function loadCSVFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+  csvQueue = files;
+  applyCSVTrack(files[Math.min(currentTrackIndex, files.length - 1)]);
+  updateTrackUI();
+  event.target.value = '';
+}
+
+function applyCSVTrack(file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
       parseCSV(e.target.result);
-      document.getElementById('csvFilename').textContent = file.name;
+      const idx = Math.min(currentTrackIndex, csvQueue.length - 1);
+      document.getElementById('csvFilename').textContent =
+        csvQueue.length > 1 ? `${file.name} (${idx + 1}/${csvQueue.length})` : file.name;
       document.getElementById('csvDrop').classList.add('loaded');
       document.getElementById('patternPanel').style.display = 'block';
       drawPattern();
-      showToast(`CSV 読み込み完了: ${csvRows.length}行`);
+      showToast(`CSV: ${file.name} (${csvRows.length}行)`);
     } catch (err) {
       showToast(`CSV 解析失敗: ${err.message}`, true);
     }
   };
   reader.readAsText(file);
-  event.target.value = '';
 }
 
 function parseCSV(text) {
@@ -891,14 +924,22 @@ function makeZeroRow() {
 
 // ===== Audio =====
 function loadAudioFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+  audioQueue = files;
+  currentTrackIndex = 0;
+  applyAudioTrack(files[0]);
+  updateTrackUI();
+  event.target.value = '';
+}
 
+function applyAudioTrack(file) {
   const url = URL.createObjectURL(file);
   audioEl.src = url;
   audioEl.load();
 
-  document.getElementById('audioFilename').textContent = file.name;
+  document.getElementById('audioFilename').textContent =
+    audioQueue.length > 1 ? `${file.name} (${currentTrackIndex + 1}/${audioQueue.length})` : file.name;
   document.getElementById('audioDrop').classList.add('loaded');
   document.getElementById('playBtn').disabled = false;
   document.getElementById('stopBtn').disabled = false;
@@ -913,8 +954,7 @@ function loadAudioFile(event) {
   };
   reader.readAsArrayBuffer(file);
 
-  showToast(`音声ファイル読み込み: ${file.name}`);
-  event.target.value = '';
+  showToast(`音声: ${file.name}`);
 }
 
 function togglePlayback() {
@@ -951,7 +991,77 @@ function stopPlayback() {
 }
 
 function onAudioEnded() {
+  if (currentTrackIndex < audioQueue.length - 1) {
+    stopCommandTimer();
+    isPlaying = false;
+    document.getElementById('playBtn').classList.remove('playing');
+    document.getElementById('playBtn').textContent = '▶';
+    loadTrackAt(currentTrackIndex + 1);
+    audioEl.addEventListener('canplay', function() {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      audioEl.play().then(() => {
+        startCommandTimer();
+        isPlaying = true;
+        document.getElementById('playBtn').classList.add('playing');
+        document.getElementById('playBtn').textContent = '⏸';
+      }).catch(() => {});
+    }, { once: true });
+  } else {
+    stopPlayback();
+  }
+}
+
+function loadTrackAt(index) {
+  currentTrackIndex = index;
+  applyAudioTrack(audioQueue[index]);
+  if (csvQueue.length > 0) {
+    applyCSVTrack(csvQueue[Math.min(index, csvQueue.length - 1)]);
+  }
+  updateTrackUI();
+}
+
+function updateTrackUI() {
+  const total = audioQueue.length;
+  document.getElementById('trackCounter').textContent =
+    total > 1 ? `トラック ${currentTrackIndex + 1} / ${total}` : '';
+  document.getElementById('prevTrackBtn').disabled = currentTrackIndex <= 0;
+  document.getElementById('nextTrackBtn').disabled = total === 0 || currentTrackIndex >= total - 1;
+}
+
+function prevTrack() {
+  if (currentTrackIndex <= 0) return;
+  const wasPlaying = isPlaying;
   stopPlayback();
+  loadTrackAt(currentTrackIndex - 1);
+  if (wasPlaying) {
+    audioEl.addEventListener('canplay', function() {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      audioEl.play().then(() => {
+        startCommandTimer();
+        isPlaying = true;
+        document.getElementById('playBtn').classList.add('playing');
+        document.getElementById('playBtn').textContent = '⏸';
+      }).catch(() => {});
+    }, { once: true });
+  }
+}
+
+function nextTrack() {
+  if (currentTrackIndex >= audioQueue.length - 1) return;
+  const wasPlaying = isPlaying;
+  stopPlayback();
+  loadTrackAt(currentTrackIndex + 1);
+  if (wasPlaying) {
+    audioEl.addEventListener('canplay', function() {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      audioEl.play().then(() => {
+        startCommandTimer();
+        isPlaying = true;
+        document.getElementById('playBtn').classList.add('playing');
+        document.getElementById('playBtn').textContent = '⏸';
+      }).catch(() => {});
+    }, { once: true });
+  }
 }
 
 function onTimeUpdate() {
