@@ -23,6 +23,7 @@ function createMainWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: false, // ローカル file:// URL へのクロスディレクトリアクセスを許可
       preload: path.join(__dirname, 'src', 'preload.js'),
     }
   });

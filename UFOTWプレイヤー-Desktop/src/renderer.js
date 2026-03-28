@@ -74,6 +74,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
   audioEl.addEventListener('timeupdate', onTimeUpdate);
   audioEl.addEventListener('ended', onAudioEnded);
+  audioEl.addEventListener('error', () => {
+    const code = audioEl.error ? audioEl.error.code : '?';
+    showToast(`音声読み込み失敗 (code ${code}): ファイルが見つからないか形式に対応していません`, true);
+    document.getElementById('playBtn').disabled = true;
+    isPlaying = false;
+    document.getElementById('playBtn').classList.remove('playing');
+    document.getElementById('playBtn').textContent = '▶';
+  });
 
   document.getElementById('waveformCanvas').addEventListener('click', seekFromWaveform);
   document.getElementById('patternCanvas').addEventListener('click', seekFromPattern);
