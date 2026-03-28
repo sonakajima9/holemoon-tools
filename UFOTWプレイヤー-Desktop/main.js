@@ -1,8 +1,22 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+const { pathToFileURL } = require('url');
+
+// ===== local:// カスタムプロトコル =====
+// app.whenReady() より前に呼び出す必要がある
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'local',
+  privileges: {
+    secure: true,          // HTTPS扱いにして制限を回避
+    supportFetchAPI: true, // fetch() でアクセス可能
+    stream: true,          // 音声シーク用 Range リクエストをストリームで処理
+    bypassCSP: true,
+    corsEnabled: true,
+  }
+}]);
 
 let mainWindow = null;
 let pickerWindow = null;
@@ -23,7 +37,7 @@ function createMainWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: false, // ローカル file:// URL へのクロスディレクトリアクセスを許可
+      // webSecurity: false は不要（local:// プロトコルで file:// 制限を根本回避）
       preload: path.join(__dirname, 'src', 'preload.js'),
     }
   });
@@ -158,8 +172,12 @@ ipcMain.handle('fs:readBinary', async (_e, filePath) => {
 });
 
 ipcMain.handle('fs:toFileUrl', (_e, filePath) => {
-  const { pathToFileURL } = require('url');
-  return pathToFileURL(filePath).href;
+  // base64url エンコード（+ → -、/ → _、= 除去）して local:// URL を生成
+  // file:// の代わりに特権スキーム local:// を使うことで
+  // Electron 28 の file:// 制限・日本語パス問題・パッケージ版の制限をすべて回避する
+  const b64url = Buffer.from(filePath, 'utf-8').toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return `local:///${b64url}`;
 });
 
 ipcMain.handle('fs:writeText', async (_e, filePath, content) => {
@@ -187,6 +205,20 @@ ipcMain.handle('dialog:showOpenJson', async () => {
 
 // ===== アプリ起動 =====
 app.whenReady().then(() => {
+  // local:// スキームでローカルファイルを提供
+  // パスは base64url エンコードされて渡される（日本語・特殊文字も安全）
+  protocol.handle('local', (request) => {
+    const url = new URL(request.url);
+    // pathname の先頭スラッシュを除去して base64url をデコード
+    let b64 = url.pathname.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const filePath = Buffer.from(b64, 'base64').toString('utf-8');
+    // Range ヘッダーをそのまま転送してシーク（部分取得）に対応
+    return net.fetch(pathToFileURL(filePath).href, {
+      headers: request.headers,
+    });
+  });
+
   createMainWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
