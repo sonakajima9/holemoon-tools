@@ -10,6 +10,19 @@ let reconnectTimer = null;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY = 2000;
 
+// 接続済みのサービス/キャラクタリスティックUUID（再接続用）
+let connectedServiceUUID = null;
+let connectedCharUUID = null;
+
+const KNOWN_SERVICE_UUIDS = [
+  '0000fff0-0000-1000-8000-00805f9b34fb',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  '0000ab00-0000-1000-8000-00805f9b34fb',
+];
+
 let audioEl = null;
 let audioCtx = null;
 let analyser = null;
@@ -85,134 +98,29 @@ function connectGattWithTimeout(gatt, ms = 10000) {
   ]);
 }
 
-async function scanBtServices() {
-  if (!navigator.bluetooth) {
-    showToast('Web Bluetooth API 非対応の環境です', true);
-    return;
-  }
-  const scanBtn = document.getElementById('btScanServicesBtn');
-  scanBtn.disabled = true;
-  showToast('デバイスを検索中...');
+// サービスをスキャンして書き込み可能な最初のキャラクタリスティックを返す
+async function findWritableCharacteristic(server) {
+  let services = [];
   try {
-    const inputServiceUUID = document.getElementById('btServiceUUID').value.trim();
-    const KNOWN_SERVICE_UUIDS = [
-      '0000fff0-0000-1000-8000-00805f9b34fb',
-      '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-      '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-      '0000ffe0-0000-1000-8000-00805f9b34fb',
-      '0000ff00-0000-1000-8000-00805f9b34fb',
-      '0000ab00-0000-1000-8000-00805f9b34fb',
-    ];
-    const optionalServices = inputServiceUUID
-      ? [inputServiceUUID, ...KNOWN_SERVICE_UUIDS.filter(u => u !== inputServiceUUID)]
-      : KNOWN_SERVICE_UUIDS;
-
-    const device = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices
-    });
-    showToast('GATT 接続中...');
-    const server = await connectGattWithTimeout(device.gatt);
-
-    isUserDisconnected = false;
-    reconnectAttempts = 0;
-
-    // サービス・キャラクタリスティックの取得を試みる
-    const candidates = [];
-
-    let services = [];
-    try {
-      services = await server.getPrimaryServices();
-    } catch (_) {
-      for (const uuid of optionalServices) {
-        try {
-          const svc = await server.getPrimaryService(uuid);
-          services.push(svc);
-        } catch (_) {}
-      }
-    }
-
-    for (const service of services) {
-      let chars;
+    services = await server.getPrimaryServices();
+  } catch (_) {
+    for (const uuid of KNOWN_SERVICE_UUIDS) {
       try {
-        chars = await service.getCharacteristics();
-      } catch (_) {
-        continue;
-      }
-      for (const char of chars) {
-        const props = char.properties;
-        if (props.write || props.writeWithoutResponse) {
-          const propLabels = [];
-          if (props.write)                propLabels.push('write');
-          if (props.writeWithoutResponse) propLabels.push('writeWithoutResponse');
-          if (props.notify)               propLabels.push('notify');
-          if (props.read)                 propLabels.push('read');
-          candidates.push({
-            serviceUUID: service.uuid,
-            charUUID: char.uuid,
-            propLabels,
-            characteristic: char
-          });
-        }
-      }
+        services.push(await server.getPrimaryService(uuid));
+      } catch (_) {}
     }
-
-    if (candidates.length === 0) {
-      server.disconnect();
-      showToast('書き込み可能なキャラクタリスティックが見つかりませんでした。サービスUUIDが既知の場合は入力欄に入力してから再度お試しください。', true);
-    } else {
-      bluetoothDevice = device;
-      bluetoothDevice.removeEventListener('gattserverdisconnected', onBtDisconnected);
-      bluetoothDevice.addEventListener('gattserverdisconnected', onBtDisconnected);
-
-      if (candidates.length === 1) {
-        finishScanConnect(candidates[0]);
-      } else {
-        openUuidModal(candidates);
-      }
-    }
-  } catch (err) {
-    if (err.name !== 'NotFoundError') {
-      showToast(`スキャン失敗: ${err.name}: ${err.message}`, true);
-    }
-  } finally {
-    scanBtn.disabled = false;
   }
-}
 
-function finishScanConnect(candidate) {
-  document.getElementById('btServiceUUID').value = candidate.serviceUUID;
-  document.getElementById('btCharUUID').value    = candidate.charUUID;
-  gattCharacteristic = candidate.characteristic;
-  isConnected = true;
-  setBtStatus('connected', `接続済み: ${bluetoothDevice.name || '(名前なし)'}`);
-  document.getElementById('btConnectBtn').disabled = true;
-  document.getElementById('btDisconnectBtn').disabled = false;
-  showToast('UUID を自動入力して接続しました');
-}
-
-function openUuidModal(candidates) {
-  const list = document.getElementById('uuidCandidateList');
-  list.innerHTML = '';
-  candidates.forEach((c, i) => {
-    const div = document.createElement('div');
-    div.className = 'uuid-candidate';
-    div.innerHTML = `
-      <div class="cand-title">候補 ${i + 1}</div>
-      <div class="cand-uuid">サービス: ${c.serviceUUID}</div>
-      <div class="cand-uuid">キャラクタリスティック: ${c.charUUID}</div>
-      <div class="cand-props">プロパティ: ${c.propLabels.join(', ')}</div>`;
-    div.addEventListener('click', () => {
-      closeUuidModal();
-      finishScanConnect(c);
-    });
-    list.appendChild(div);
-  });
-  document.getElementById('uuidModal').classList.add('show');
-}
-
-function closeUuidModal() {
-  document.getElementById('uuidModal').classList.remove('show');
+  for (const service of services) {
+    let chars;
+    try { chars = await service.getCharacteristics(); } catch (_) { continue; }
+    for (const char of chars) {
+      if (char.properties.write || char.properties.writeWithoutResponse) {
+        return { serviceUUID: service.uuid, charUUID: char.uuid, characteristic: char };
+      }
+    }
+  }
+  return null;
 }
 
 async function connectBluetooth() {
@@ -221,48 +129,56 @@ async function connectBluetooth() {
     return;
   }
   const nameFilter = document.getElementById('btNameFilter').value.trim();
-  const serviceUUID = document.getElementById('btServiceUUID').value.trim();
-  const charUUID    = document.getElementById('btCharUUID').value.trim();
 
   setBtStatus('connecting', '接続中...');
   document.getElementById('btConnectBtn').disabled = true;
   try {
-    const filters = nameFilter
-      ? [{ namePrefix: nameFilter }]
-      : [{ services: [serviceUUID] }];
-
-    bluetoothDevice = await navigator.bluetooth.requestDevice({
+    const filters = nameFilter ? [{ namePrefix: nameFilter }] : undefined;
+    const device = await navigator.bluetooth.requestDevice({
       filters,
-      optionalServices: [serviceUUID]
+      acceptAllDevices: !nameFilter,
+      optionalServices: KNOWN_SERVICE_UUIDS
     });
 
-    bluetoothDevice.removeEventListener('gattserverdisconnected', onBtDisconnected);
-    bluetoothDevice.addEventListener('gattserverdisconnected', onBtDisconnected);
+    device.removeEventListener('gattserverdisconnected', onBtDisconnected);
+    device.addEventListener('gattserverdisconnected', onBtDisconnected);
 
-    const server  = await connectGattWithTimeout(bluetoothDevice.gatt);
-    const service = await server.getPrimaryService(serviceUUID);
-    gattCharacteristic = await service.getCharacteristic(charUUID);
+    showToast('GATT 接続中...');
+    const server = await connectGattWithTimeout(device.gatt);
+    const found  = await findWritableCharacteristic(server);
 
-    isConnected = true;
-    isUserDisconnected = false;
-    reconnectAttempts = 0;
-    setBtStatus('connected', `接続済み: ${bluetoothDevice.name || '(名前なし)'}`);
-    document.getElementById('btConnectBtn').disabled = true;
+    if (!found) {
+      server.disconnect();
+      document.getElementById('btConnectBtn').disabled = false;
+      setBtStatus('error', '接続失敗: 書き込み可能なキャラクタリスティックが見つかりませんでした');
+      showToast('書き込み可能なキャラクタリスティックが見つかりませんでした', true);
+      return;
+    }
+
+    bluetoothDevice       = device;
+    gattCharacteristic    = found.characteristic;
+    connectedServiceUUID  = found.serviceUUID;
+    connectedCharUUID     = found.charUUID;
+    isConnected           = true;
+    isUserDisconnected    = false;
+    reconnectAttempts     = 0;
+
+    setBtStatus('connected', `接続済み: ${device.name || '(名前なし)'}`);
+    document.getElementById('btConnectBtn').disabled    = true;
     document.getElementById('btDisconnectBtn').disabled = false;
     showToast('Bluetooth 接続しました');
   } catch (err) {
     document.getElementById('btConnectBtn').disabled = false;
     bluetoothDevice = null;
-    let detail = '';
-    if (err.name === 'NotFoundError') {
-      detail = 'サービスUUIDまたはキャラクタリスティックUUIDがデバイスと一致していません';
-    } else if (err.name === 'NetworkError') {
-      detail = 'デバイスとの通信に失敗しました。デバイスが近くにあるか確認してください';
+    if (err.name !== 'NotFoundError') {
+      const detail = err.name === 'NetworkError'
+        ? 'デバイスとの通信に失敗しました。デバイスが近くにあるか確認してください'
+        : `${err.name}: ${err.message}`;
+      setBtStatus('error', `接続失敗: ${detail}`);
+      showToast(`接続失敗: ${detail}`, true);
     } else {
-      detail = `${err.name}: ${err.message}`;
+      setBtStatus('', '未接続');
     }
-    setBtStatus('error', `接続失敗: ${detail}`);
-    showToast(`接続失敗: ${detail}`, true);
   }
 }
 
@@ -312,16 +228,27 @@ function scheduleReconnect() {
 
 async function attemptReconnect() {
   if (!bluetoothDevice) return;
-  const serviceUUID = document.getElementById('btServiceUUID').value.trim();
-  const charUUID    = document.getElementById('btCharUUID').value.trim();
   try {
-    const server  = await connectGattWithTimeout(bluetoothDevice.gatt);
-    const service = await server.getPrimaryService(serviceUUID);
-    gattCharacteristic = await service.getCharacteristic(charUUID);
+    const server = await connectGattWithTimeout(bluetoothDevice.gatt);
+    let found = null;
+    // まず前回と同じサービス/キャラクタリスティックで再接続を試みる
+    if (connectedServiceUUID && connectedCharUUID) {
+      try {
+        const svc  = await server.getPrimaryService(connectedServiceUUID);
+        const char = await svc.getCharacteristic(connectedCharUUID);
+        found = { characteristic: char };
+      } catch (_) {}
+    }
+    if (!found) {
+      found = await findWritableCharacteristic(server);
+    }
+    if (!found) throw new Error('キャラクタリスティック取得失敗');
+
+    gattCharacteristic = found.characteristic;
     isConnected = true;
     reconnectAttempts = 0;
     setBtStatus('connected', `接続済み: ${bluetoothDevice.name || '(名前なし)'}`);
-    document.getElementById('btConnectBtn').disabled = true;
+    document.getElementById('btConnectBtn').disabled    = true;
     document.getElementById('btDisconnectBtn').disabled = false;
     showToast('Bluetooth 再接続しました');
   } catch (err) {

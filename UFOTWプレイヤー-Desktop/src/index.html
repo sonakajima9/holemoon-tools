@@ -26,14 +26,6 @@
       <input type="text" id="btNameFilter" placeholder="例: UFO" value="UFO">
     </div>
     <div class="form-group">
-      <label>サービス UUID</label>
-      <input type="text" id="btServiceUUID" value="0000fff0-0000-1000-8000-00805f9b34fb">
-    </div>
-    <div class="form-group">
-      <label>キャラクタリスティック UUID（書き込み）</label>
-      <input type="text" id="btCharUUID" value="0000fff1-0000-1000-8000-00805f9b34fb">
-    </div>
-    <div class="form-group">
       <label>コマンドフォーマット</label>
       <select id="cmdFormat">
         <option value="lovense">Lovense互換（テキスト "Vibrate:XX;\r\n"）</option>
@@ -48,7 +40,6 @@
     <button class="btn btn-primary" id="btConnectBtn" onclick="connectBluetooth()">接続</button>
     <button class="btn btn-danger" id="btDisconnectBtn" onclick="disconnectBluetooth()" disabled>切断</button>
     <button class="btn btn-secondary" onclick="testCommand()">テスト送信</button>
-    <button class="btn btn-secondary" id="btScanServicesBtn" onclick="scanBtServices()">UUID自動検出</button>
   </div>
   <div class="form-group" style="margin-top:8px;">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -236,17 +227,6 @@
 
 <div id="toast"></div>
 
-<!-- ===== UUID 自動検出モーダル ===== -->
-<div id="uuidModal">
-  <div class="uuid-modal-box">
-    <h3>書き込み可能なキャラクタリスティックが複数見つかりました</h3>
-    <p>使用するキャラクタリスティックを選択してください。選択するとサービスUUIDとキャラクタリスティックUUIDが自動入力されます。</p>
-    <div id="uuidCandidateList"></div>
-    <div class="uuid-modal-footer">
-      <button class="btn btn-secondary" onclick="closeUuidModal()">キャンセル</button>
-    </div>
-  </div>
-</div>
 
 <script src="renderer.js"></script>
 </body>
