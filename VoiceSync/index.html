@@ -344,6 +344,20 @@ canvas#timelineCanvas { display: block; }
       <input type="number" id="minSpeechDuration" value="0.2" min="0.05" max="3" step="0.05">
     </div>
     <div class="setting-group">
+      <label>スムージング幅 (フレーム)</label>
+      <div class="range-row">
+        <input type="range" id="smoothingFrames" min="0" max="10" value="3" step="1">
+        <span class="range-value" id="smoothingFramesVal">3</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>ヒステリシス比率</label>
+      <div class="range-row">
+        <input type="range" id="hysteresisRatio" min="0.25" max="1.0" value="0.5" step="0.05">
+        <span class="range-value" id="hysteresisRatioVal">0.50</span>
+      </div>
+    </div>
+    <div class="setting-group">
       <div class="checkbox-row" style="margin-top:14px;">
         <input type="checkbox" id="enableSR">
         <label for="enableSR">音声認識で文字起こし</label>
@@ -728,6 +742,12 @@ updateSRNotice();
 document.getElementById('silenceThreshold').addEventListener('input', function() {
   document.getElementById('silenceThresholdVal').textContent = this.value + 'dB';
 });
+document.getElementById('smoothingFrames').addEventListener('input', function() {
+  document.getElementById('smoothingFramesVal').textContent = this.value;
+});
+document.getElementById('hysteresisRatio').addEventListener('input', function() {
+  document.getElementById('hysteresisRatioVal').textContent = parseFloat(this.value).toFixed(2);
+});
 
 // ====== Waveform Drawing ======
 function extractWaveform(buffer, samples) {
@@ -891,6 +911,8 @@ async function detectSpeechSegments() {
   const thresholdLinear = Math.pow(10, thresholdDb / 20);
   const minSilence = parseFloat(document.getElementById('minSilenceDuration').value);
   const minSpeech = parseFloat(document.getElementById('minSpeechDuration').value);
+  const smoothingFrames = parseInt(document.getElementById('smoothingFrames').value) || 0;
+  const hysteresisRatio = parseFloat(document.getElementById('hysteresisRatio').value);
   const sampleRate = audioBuffer.sampleRate;
   const length = audioBuffer.length;
   const mono = new Float32Array(length);
@@ -913,7 +935,6 @@ async function detectSpeechSegments() {
   const frameSize = Math.floor(sampleRate * 0.02);
   const hopSize = Math.floor(sampleRate * 0.01);
   const numFrames = Math.floor((length - frameSize) / hopSize) + 1;
-  const isSpeech = new Uint8Array(numFrames);
   const frameRMS = new Float32Array(numFrames);
   const FRAME_CHUNK = 50000;
   for (let f = 0; f < numFrames; f += FRAME_CHUNK) {
@@ -922,11 +943,38 @@ async function detectSpeechSegments() {
       const start = ff * hopSize;
       let sum = 0;
       for (let i = 0; i < frameSize; i++) { const val = mono[start + i] || 0; sum += val * val; }
-      const rms = Math.sqrt(sum / frameSize);
-      frameRMS[ff] = rms;
-      isSpeech[ff] = rms > thresholdLinear ? 1 : 0;
+      frameRMS[ff] = Math.sqrt(sum / frameSize);
     }
     await yieldToMain();
+  }
+
+  // Smoothing: apply moving average window to reduce noise spikes
+  const smoothedRMS = new Float32Array(numFrames);
+  if (smoothingFrames > 0) {
+    for (let f = 0; f < numFrames; f++) {
+      let sum = 0, count = 0;
+      for (let d = -smoothingFrames; d <= smoothingFrames; d++) {
+        const idx = f + d;
+        if (idx >= 0 && idx < numFrames) { sum += frameRMS[idx]; count++; }
+      }
+      smoothedRMS[f] = sum / count;
+    }
+  } else {
+    smoothedRMS.set(frameRMS);
+  }
+
+  // Hysteresis thresholding: higher onset threshold, lower offset threshold
+  const onsetThreshold = thresholdLinear;
+  const offsetThreshold = thresholdLinear * hysteresisRatio;
+  const isSpeech = new Uint8Array(numFrames);
+  let currentlySpeaking = false;
+  for (let f = 0; f < numFrames; f++) {
+    if (!currentlySpeaking && smoothedRMS[f] > onsetThreshold) {
+      currentlySpeaking = true;
+    } else if (currentlySpeaking && smoothedRMS[f] <= offsetThreshold) {
+      currentlySpeaking = false;
+    }
+    isSpeech[f] = currentlySpeaking ? 1 : 0;
   }
 
   const result = [];
