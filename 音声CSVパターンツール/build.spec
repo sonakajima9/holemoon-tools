@@ -2,24 +2,28 @@
 # PyInstaller spec for 音声CSVパターン分析ツール
 # Usage: pyinstaller build.spec
 
+from PyInstaller.utils.hooks import collect_all
+
+# cffi ベース・ネイティブ拡張のバイナリ/データ/隠しインポートを確実に収集
+# (PyInstaller 6.x でのDLL収集挙動変更に対応)
+_webrtcvad = collect_all('webrtcvad')
+_sounddevice = collect_all('sounddevice')
+_dearpygui = collect_all('dearpygui')
+
 a = Analysis(
     ['gui.py'],
     pathex=['.'],
-    binaries=[],
-    datas=[],
+    binaries=_webrtcvad[1] + _sounddevice[1] + _dearpygui[1],
+    datas=_webrtcvad[0] + _sounddevice[0] + _dearpygui[0],
     hiddenimports=[
         'analyze',
-        'dearpygui',
-        'dearpygui.dearpygui',
-        'sounddevice',
         'soundfile',
         'soundfile._sndfile',
-        'webrtcvad',
         'numpy',
         'numpy.core._multiarray_umath',
         'cffi',
         '_cffi_backend',
-    ],
+    ] + _webrtcvad[2] + _sounddevice[2] + _dearpygui[2],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
