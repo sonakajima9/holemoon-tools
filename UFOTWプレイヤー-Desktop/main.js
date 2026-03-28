@@ -48,6 +48,15 @@ function createMainWindow() {
     // deviceList が空の場合はスキャン継続（ピッカーは開かない）
   });
 
+  // ドラッグ&ドロップで音声ファイルをウィンドウ外に落としたとき
+  // Electron が file:// URLへナビゲートするのをメインプロセス側でも防ぐ
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const appUrl = 'file://' + path.join(__dirname, 'src', 'index.html').replace(/\\/g, '/');
+    if (url !== appUrl) {
+      event.preventDefault();
+    }
+  });
+
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
 
   mainWindow.on('closed', () => {

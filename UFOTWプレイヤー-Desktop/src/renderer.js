@@ -373,13 +373,17 @@ async function testCommand() {
       const rSpeed = target !== 'left'  ? speed : 0;
       const lDir   = target !== 'right' ? dir   : 0;
       const rDir   = target !== 'left'  ? dir   : 0;
+      const bytes  = buildCommandBytes(lDir, lSpeed, rDir, rSpeed);
+      const hex    = Array.from(bytes).map(b => '0x' + b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
       await sendRawCommand(lDir, lSpeed, rDir, rSpeed);
-      showToast(`テスト送信（対象:${targetLabel} 方向:${dirLabel} 速度:${speed}）`);
+      showToast(`テスト送信OK（${targetLabel} ${dirLabel} ${speed}） → [${hex}]`);
       document.getElementById('testStopBtn').disabled = false;
       testStopTimer = setTimeout(() => stopTestCommand(), 3000);
     } else {
+      const bytes = buildCommandBytes(dir, speed, 0, 0);
+      const hex   = Array.from(bytes).map(b => '0x' + b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
       await sendRawCommand(dir, speed);
-      showToast(`テスト送信（方向:${dirLabel} 速度:${speed}）`);
+      showToast(`テスト送信OK（${dirLabel} ${speed}） → [${hex}]`);
       document.getElementById('testStopBtn').disabled = false;
       testStopTimer = setTimeout(() => stopTestCommand(), 3000);
     }
@@ -450,18 +454,29 @@ async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
   const writeMode = document.getElementById('writeMode')?.value ?? 'auto';
 
+  // writeValueWithResponse が使えるか確認（Electron 28 では存在するが念のため）
+  const canWriteWithResponse    = typeof gattCharacteristic.writeValueWithResponse    === 'function';
+  const canWriteWithoutResponse = typeof gattCharacteristic.writeValueWithoutResponse === 'function';
+
   if (writeMode === 'response') {
-    await gattCharacteristic.writeValueWithResponse(bytes);
-  } else if (writeMode === 'no-response') {
-    await gattCharacteristic.writeValueWithoutResponse(bytes);
-  } else {
-    // auto: デバイスのプロパティに従う（writeWithoutResponse 優先、なければ writeWithResponse）
-    if (gattCharacteristic.properties.writeWithoutResponse) {
-      await gattCharacteristic.writeValueWithoutResponse(bytes);
-    } else if (gattCharacteristic.properties.write) {
+    if (canWriteWithResponse) {
       await gattCharacteristic.writeValueWithResponse(bytes);
     } else {
-      // 最終フォールバック（旧 Electron / 非標準実装向け）
+      await gattCharacteristic.writeValue(bytes);
+    }
+  } else if (writeMode === 'no-response') {
+    if (canWriteWithoutResponse) {
+      await gattCharacteristic.writeValueWithoutResponse(bytes);
+    } else {
+      await gattCharacteristic.writeValue(bytes);
+    }
+  } else {
+    // auto: writeWithoutResponse プロパティに従う
+    if (gattCharacteristic.properties.writeWithoutResponse && canWriteWithoutResponse) {
+      await gattCharacteristic.writeValueWithoutResponse(bytes);
+    } else if (canWriteWithResponse) {
+      await gattCharacteristic.writeValueWithResponse(bytes);
+    } else {
       await gattCharacteristic.writeValue(bytes);
     }
   }
@@ -605,20 +620,26 @@ function applyAudioTrack(file) {
   document.getElementById('stopBtn').disabled = false;
 
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
-      drawWaveform(decoded);
-    } catch (err) {
-      drawWaveformEmpty();
-      showToast(`波形生成失敗: ${err.message}`, true);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-
-  showToast(`音声: ${file.name}`);
+  drawWaveformEmpty();
+  // 100MB 超のファイルは decodeAudioData 自体が長時間メインスレッドを占有するためスキップ
+  const MAX_WAVEFORM_FILE = 100 * 1024 * 1024;
+  if (file.size > MAX_WAVEFORM_FILE) {
+    showToast(`音声: ${file.name}（波形表示スキップ: ${(file.size / 1024 / 1024).toFixed(0)}MB）`);
+  } else {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
+        drawWaveform(decoded);
+      } catch (err) {
+        drawWaveformEmpty();
+        showToast(`波形生成失敗: ${err.message}`, true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    showToast(`音声: ${file.name}`);
+  }
 }
 
 function togglePlayback() {
@@ -873,7 +894,11 @@ function drawWaveform(audioBuffer) {
   ctx.fillRect(0, 0, W, H);
 
   const data = audioBuffer.getChannelData(0);
-  const step = Math.ceil(data.length / W);
+  const totalSamples = data.length;
+  const step = Math.ceil(totalSamples / W);
+  // 1ピクセルあたり最大256サンプルに間引き
+  // （大容量ファイルで step が巨大になっても総ループ数を W×256 以内に抑える）
+  const stride = Math.max(1, Math.floor(step / 256));
   const half = H / 2;
 
   ctx.strokeStyle = '#e94560';
@@ -881,8 +906,10 @@ function drawWaveform(audioBuffer) {
   ctx.beginPath();
   for (let x = 0; x < W; x++) {
     let min = 1, max = -1;
-    for (let j = 0; j < step; j++) {
-      const v = data[x * step + j] || 0;
+    const base = x * step;
+    const end  = Math.min(base + step, totalSamples);
+    for (let j = base; j < end; j += stride) {
+      const v = data[j];
       if (v < min) min = v;
       if (v > max) max = v;
     }
@@ -988,6 +1015,9 @@ async function applyAudioFromPath(audioPath, audioName) {
       try {
         const response = await fetch(fileUrl);
         const arrayBuffer = await response.arrayBuffer();
+        // 100MB 超は decodeAudioData がメインスレッドを長時間占有するためスキップ
+        const MAX_WAVEFORM_FILE = 100 * 1024 * 1024;
+        if (arrayBuffer.byteLength > MAX_WAVEFORM_FILE) return;
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
         drawWaveform(decoded);
