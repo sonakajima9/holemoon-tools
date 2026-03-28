@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HoleMoon Tools</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      padding: 64px 20px 48px;
+      background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+      border-bottom: 1px solid #21262d;
+    }
+
+    .logo {
+      font-size: 2.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #79c0ff, #a5d6ff, #d2a8ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+
+    .subtitle {
+      color: #8b949e;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 20px;
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #8b949e;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .tool-card {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s ease, transform 0.1s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tool-card:hover {
+      border-color: #388bfd;
+      transform: translateY(-2px);
+    }
+
+    .tool-icon { font-size: 1.8rem; }
+
+    .tool-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e6edf3;
+    }
+
+    .tool-desc {
+      font-size: 0.83rem;
+      color: #8b949e;
+      line-height: 1.65;
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px;
+      color: #484f58;
+      font-size: 0.78rem;
+      border-top: 1px solid #21262d;
+      margin-top: 40px;
+    }
+
+    footer a {
+      color: #388bfd;
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">🌙 HoleMoon Tools</div>
+    <p class="subtitle">音声制作・テキスト処理のためのブラウザツール集<br>すべてオフラインで動作します</p>
+  </header>
+
+  <main>
+    <p class="section-title">ツール一覧</p>
+    <div class="tools-grid">
+
+      <a class="tool-card" href="./CSVジェネレーター/">
+        <div class="tool-icon">📊</div>
+        <div class="tool-name">CSVジェネレーター</div>
+        <div class="tool-desc">音声収録用CSVファイルを生成するツール。セリフリストを整形して書き出せます。</div>
+      </a>
+
+      <a class="tool-card" href="./VoiceSync/">
+        <div class="tool-icon">🎙️</div>
+        <div class="tool-name">VoiceSync</div>
+        <div class="tool-desc">台本と音声ファイルをリンクして管理する同期ツール。</div>
+      </a>
+
+      <a class="tool-card" href="./文字変換ソフト/">
+        <div class="tool-icon">🔤</div>
+        <div class="tool-name">文字変換ソフト</div>
+        <div class="tool-desc">テキストの変換・置換を行うツール。独自マッピングに対応。</div>
+      </a>
+
+      <a class="tool-card" href="./音声CSVパターンツール/">
+        <div class="tool-icon">🗂️</div>
+        <div class="tool-name">音声CSVパターンツール</div>
+        <div class="tool-desc">音声収録パターンからCSVを生成するツール。</div>
+      </a>
+
+      <a class="tool-card" href="./音声セリフ抽出ツール/">
+        <div class="tool-icon">📝</div>
+        <div class="tool-name">音声セリフ抽出ツール</div>
+        <div class="tool-desc">台本ファイルからキャラクターのセリフを抽出・整理するツール。</div>
+      </a>
+
+      <a class="tool-card" href="./ElevenLabs辞書/">
+        <div class="tool-icon">📖</div>
+        <div class="tool-name">ElevenLabs辞書</div>
+        <div class="tool-desc">ElevenLabs用PLS形式の発音辞書。日本語TTS向け読み仮名マッピングを収録。</div>
+      </a>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>HoleMoon Tools &mdash; <a href="https://github.com/sonakajima9/HoleMoon" target="_blank">HoleMoon</a> で開発・管理 | 自動同期により常に最新版を公開</p>
+  </footer>
+</body>
+</html>
