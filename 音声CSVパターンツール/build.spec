@@ -2,8 +2,6 @@
 # PyInstaller spec for 音声CSVパターン分析ツール
 # Usage: pyinstaller build.spec
 
-block_cipher = None
-
 a = Analysis(
     ['gui.py'],
     pathex=['.'],
@@ -27,13 +25,10 @@ a = Analysis(
     runtime_hooks=[],
     # 未使用のGUIフレームワークを除外してサイズを削減
     excludes=['tkinter', 'PyQt5', 'PyQt6', 'wx', 'PySide6', 'matplotlib'],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
