@@ -425,7 +425,7 @@ canvas#timelineCanvas { display: block; }
     <h3>文字起こし（Whisper / transformers.js）</h3>
     <p class="whisper-note">
       ブラウザ内で Whisper モデルを実行します。初回はモデルのダウンロードが発生します（以降はキャッシュ）。<br>
-      <strong>tiny</strong>: 約75MB・高速・精度低め　／　<strong>small</strong>: 約460MB・推奨　／　<strong>medium</strong>: 約1.5GB・高精度
+      <strong>tiny</strong>: 約75MB・高速・精度低め　／　<strong>small</strong>: 約168MB・推奨（量子化済み）　／　<strong>medium</strong>: 約1.5GB・高精度
     </p>
     <div class="whisper-controls">
       <select id="whisperModel">
@@ -2180,7 +2180,7 @@ async function loadWhisperModel() {
     'automatic-speech-recognition',
     modelName,
     {
-      dtype: 'fp32',
+      dtype: 'q8',
       progress_callback: (data) => {
         if (data.status === 'progress' && progressFill) {
           const pct = Math.round(data.progress || 0);
