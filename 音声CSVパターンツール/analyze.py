@@ -52,8 +52,10 @@ try:
 except ImportError:
     print(
         "エラー: webrtcvad が見つかりません。\n"
-        "  pip install webrtcvad\n"
-        "でインストールしてください。",
+        "  pip install webrtcvad-wheels\n"
+        "でインストールしてください。\n"
+        "（webrtcvad は setuptools の新バージョンでビルド失敗するため\n"
+        "  webrtcvad-wheels を推奨します）",
         file=sys.stderr,
     )
     sys.exit(1)

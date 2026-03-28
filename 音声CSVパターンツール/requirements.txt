@@ -15,7 +15,5 @@ numpy>=1.24.0
 pyinstaller>=5.0
 
 # 発話検出
-# Windows: webrtcvad はビルドエラーになる場合があるため webrtcvad-wheels を推奨
-#   pip install webrtcvad-wheels
-# Linux / macOS:
-webrtcvad>=2.0.10
+# webrtcvad は setuptools の新バージョンでビルド失敗するため webrtcvad-wheels を使用
+webrtcvad-wheels>=2.0.10
