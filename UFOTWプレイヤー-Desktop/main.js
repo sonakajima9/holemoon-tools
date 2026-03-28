@@ -147,6 +147,11 @@ ipcMain.handle('fs:readBinary', async (_e, filePath) => {
   return new Uint8Array(buf);
 });
 
+ipcMain.handle('fs:toFileUrl', (_e, filePath) => {
+  const { pathToFileURL } = require('url');
+  return pathToFileURL(filePath).href;
+});
+
 ipcMain.handle('fs:writeText', async (_e, filePath, content) => {
   await fs.promises.writeFile(filePath, content, 'utf-8');
   return true;

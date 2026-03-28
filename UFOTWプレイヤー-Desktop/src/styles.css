@@ -114,6 +114,17 @@ h2 {
   flex-wrap: wrap;
 }
 
+.test-send-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #0f3460;
+}
+.test-send-row .form-group { margin: 0; }
+
 /* --- Drop Zones --- */
 .drop-grid {
   display: grid;

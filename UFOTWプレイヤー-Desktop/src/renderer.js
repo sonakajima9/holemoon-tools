@@ -316,17 +316,28 @@ function setBtStatus(state, label) {
 
 async function testCommand() {
   if (!isConnected) { showToast('未接続です', true); return; }
+
+  const target = document.getElementById('testTarget').value; // 'both' | 'left' | 'right'
+  const dir    = parseInt(document.getElementById('testDir').value) || 0; // 0=正転, 1=逆転
+  const speed  = clamp(parseInt(document.getElementById('testSpeed').value) || 50, 0, 100);
+
+  const dirLabel   = dir ? '逆転' : '正転';
+  const targetLabel = target === 'both' ? '両方' : target === 'left' ? '左' : '右';
+
   try {
     if (csvFormat === 5) {
-      await sendRawCommand(0, 50, 0, 50);
+      const lSpeed = target !== 'right' ? speed : 0;
+      const rSpeed = target !== 'left'  ? speed : 0;
+      const lDir   = target !== 'right' ? dir   : 0;
+      const rDir   = target !== 'left'  ? dir   : 0;
+      await sendRawCommand(lDir, lSpeed, rDir, rSpeed);
+      showToast(`テスト送信（対象:${targetLabel} 方向:${dirLabel} 速度:${speed}）`);
+      setTimeout(() => sendRawCommand(0, 0, 0, 0), 1000);
     } else {
-      await sendRawCommand(0, 50);
+      await sendRawCommand(dir, speed);
+      showToast(`テスト送信（方向:${dirLabel} 速度:${speed}）`);
+      setTimeout(() => sendRawCommand(0, 0), 1000);
     }
-    showToast('テスト送信しました（速度50）');
-    setTimeout(() => {
-      if (csvFormat === 5) sendRawCommand(0, 0, 0, 0);
-      else sendRawCommand(0, 0);
-    }, 1000);
   } catch (err) {
     showToast(`送信失敗: ${err.message}`, true);
   }
@@ -864,15 +875,12 @@ window.addEventListener('resize', () => {
 // ===== Path-based Audio / CSV Loading =====
 async function applyAudioFromPath(audioPath, audioName) {
   try {
-    const uint8 = await window.electronAPI.readBinaryFile(audioPath);
-    // uint8.buffer may have offset/length; extract a clean ArrayBuffer copy
-    const arrayBuffer = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
-
-    const blob = new Blob([arrayBuffer]);
+    // file:// URL を直接使用して音声再生 — 巨大ファイルのバイナリIPC転送によるフリーズを回避
+    const fileUrl = await window.electronAPI.toFileUrl(audioPath);
     if (audioEl.src && audioEl.src.startsWith('blob:')) {
       URL.revokeObjectURL(audioEl.src);
     }
-    audioEl.src = URL.createObjectURL(blob);
+    audioEl.src = fileUrl;
     audioEl.load();
 
     const total = getTrackCount();
@@ -882,17 +890,24 @@ async function applyAudioFromPath(audioPath, audioName) {
     document.getElementById('playBtn').disabled  = false;
     document.getElementById('stopBtn').disabled  = false;
 
-    if (audioCtx) { audioCtx.close(); audioCtx = null; }
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-      drawWaveform(decoded);
-    } catch (decErr) {
-      drawWaveformEmpty();
-      showToast(`波形生成失敗: ${decErr.message}`, true);
-    }
-
     showToast(`音声: ${audioName}`);
+
+    // 波形描画は別途非同期で実行（再生開始をブロックしない）
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    drawWaveformEmpty();
+    (async () => {
+      try {
+        const uint8 = await window.electronAPI.readBinaryFile(audioPath);
+        const arrayBuffer = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+        drawWaveform(decoded);
+      } catch (decErr) {
+        drawWaveformEmpty();
+        // 波形失敗は再生に影響しないため静かにトーストのみ
+        showToast(`波形生成失敗: ${decErr.message}`, true);
+      }
+    })();
   } catch (err) {
     showToast(`音声読み込み失敗: ${err.message}`, true);
   }
