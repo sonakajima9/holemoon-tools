@@ -1,0 +1,21 @@
+# 音声CSVパターン分析ツール 依存ライブラリ
+# pip install -r requirements.txt
+
+# GUI フレームワーク
+dearpygui>=1.9.0
+
+# 音声再生
+sounddevice>=0.4.6
+soundfile>=0.12.1
+
+# 数値計算（波形処理）
+numpy>=1.24.0
+
+# ビルド
+pyinstaller>=5.0
+
+# 発話検出
+# Windows: webrtcvad はビルドエラーになる場合があるため webrtcvad-wheels を推奨
+#   pip install webrtcvad-wheels
+# Linux / macOS:
+webrtcvad>=2.0.10
