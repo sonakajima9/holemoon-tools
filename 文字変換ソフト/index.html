@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字変換ツール</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    color: #e94560;
+    text-align: center;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .direction-btn {
+    padding: 10px 20px;
+    border: 2px solid #e94560;
+    border-radius: 8px;
+    background: transparent;
+    color: #e94560;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .direction-btn.active {
+    background: #e94560;
+    color: #fff;
+  }
+
+  .direction-btn:hover {
+    background: #e94560;
+    color: #fff;
+    opacity: 0.85;
+  }
+
+  .arrow-icon {
+    font-size: 1.4rem;
+    color: #e94560;
+    user-select: none;
+  }
+
+  .editor-area {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    max-width: 1100px;
+    flex: 1;
+  }
+
+  @media (max-width: 700px) {
+    .editor-area { flex-direction: column; }
+  }
+
+  .panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-label {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+    color: #aaa;
+  }
+
+  textarea {
+    flex: 1;
+    min-height: 320px;
+    padding: 14px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #16213e;
+    color: #e0e0e0;
+    font-size: 1rem;
+    line-height: 1.7;
+    resize: vertical;
+    font-family: inherit;
+  }
+
+  textarea:focus {
+    outline: none;
+    border-color: #e94560;
+  }
+
+  .action-row {
+    display: flex;
+    gap: 10px;
+    margin: 16px 0;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .action-btn {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .action-btn:hover { opacity: 0.85; }
+
+  #convertBtn {
+    background: #e94560;
+    color: #fff;
+  }
+
+  #clearBtn {
+    background: #333;
+    color: #ccc;
+  }
+
+  #stripBtn {
+    background: #533483;
+    color: #e0e0e0;
+  }
+
+  #copyBtn {
+    background: #0f3460;
+    color: #e0e0e0;
+  }
+
+  #downloadBtn {
+    background: #1a6b3c;
+    color: #e0e0e0;
+  }
+
+  .stats {
+    font-size: 0.8rem;
+    color: #777;
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  .mapping-section {
+    width: 100%;
+    max-width: 1100px;
+    margin-top: 28px;
+  }
+
+  .mapping-toggle {
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+  }
+
+  .mapping-toggle:hover { border-color: #e94560; color: #e94560; }
+
+  .file-section {
+    width: 100%;
+    max-width: 1100px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .file-label {
+    font-size: 0.85rem;
+    color: #aaa;
+  }
+
+  .file-name {
+    font-size: 0.85rem;
+    color: #e94560;
+    font-weight: bold;
+  }
+
+  .file-upload-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  .file-upload-btn:hover { border-color: #e94560; color: #e94560; }
+
+  .file-reset-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  .file-reset-btn:hover { border-color: #e94560; color: #e94560; }
+
+  .mapping-table-wrap {
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #333;
+    border-radius: 8px;
+  }
+
+  .mapping-table-wrap.open { display: block; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  th {
+    background: #0f3460;
+    padding: 8px 12px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+  }
+
+  td {
+    padding: 6px 12px;
+    border-top: 1px solid #292929;
+  }
+
+  tr:hover td { background: #1f2f50; }
+
+  .highlight {
+    background: rgba(233, 69, 96, 0.25);
+    border-radius: 2px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #e94560;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  .toast.show { opacity: 1; }
+
+  .txt-upload-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .txt-upload-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+  }
+
+  .txt-upload-btn:hover { border-color: #e94560; color: #e94560; }
+
+  .txt-file-name {
+    font-size: 0.8rem;
+    color: #e94560;
+  }
+
+  textarea.drag-over {
+    border-color: #e94560 !important;
+    background: rgba(233, 69, 96, 0.1) !important;
+  }
+
+  .drop-hint {
+    font-size: 0.75rem;
+    color: #555;
+    margin-left: auto;
+  }
+</style>
+</head>
+<body>
+
+<h1>文字変換ツール</h1>
+
+<div class="file-section">
+  <span class="file-label">対応表ファイル:</span>
+  <span class="file-name" id="currentFileName">mapping.json（既定）</span>
+  <button class="file-upload-btn" onclick="document.getElementById('fileInput').click()">ファイルを差し替え</button>
+  <button class="file-reset-btn" id="resetBtn" onclick="resetMapping()" style="display:none">既定に戻す</button>
+  <input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleFileUpload(event)">
+</div>
+
+<div class="controls">
+  <button class="direction-btn active" id="btnOrigToReplace" onclick="setDirection('toReplace')">
+    ピンクワード → 果物語
+  </button>
+  <span class="arrow-icon">⇄</span>
+  <button class="direction-btn" id="btnReplaceToOrig" onclick="setDirection('toOriginal')">
+    果物語 → ピンクワード
+  </button>
+</div>
+
+<div class="editor-area">
+  <div class="panel">
+    <div class="txt-upload-row">
+      <div class="panel-label" id="inputLabel">入力（ピンクワード）</div>
+      <button class="txt-upload-btn" onclick="document.getElementById('txtFileInput').click()">txtファイルを読み込み</button>
+      <span class="txt-file-name" id="txtFileName"></span>
+      <input type="file" id="txtFileInput" accept=".txt" style="display:none" onchange="handleTxtUpload(event)">
+      <span class="drop-hint">※ドラッグ&amp;ドロップも可</span>
+    </div>
+    <textarea id="inputText" placeholder="ここにテキストを入力、またはtxtファイルをドラッグ&ドロップしてください..."></textarea>
+    <div class="stats" id="inputStats">0 文字</div>
+  </div>
+  <div class="panel">
+    <div class="panel-label" id="outputLabel">出力（果物語）</div>
+    <textarea id="outputText" readonly placeholder="変換結果がここに表示されます"></textarea>
+    <div class="stats" id="outputStats">0 文字</div>
+  </div>
+</div>
+
+<div class="action-row">
+  <button class="action-btn" id="convertBtn" onclick="convert()">変換</button>
+  <button class="action-btn" id="stripBtn" onclick="stripLineBreaks()">改行除去</button>
+  <button class="action-btn" id="copyBtn" onclick="copyOutput()">コピー</button>
+  <button class="action-btn" id="downloadBtn" onclick="downloadOutput()">DL</button>
+  <button class="action-btn" id="clearBtn" onclick="clearAll()">クリア</button>
+</div>
+
+<div class="mapping-section">
+  <button class="mapping-toggle" onclick="toggleMapping()">対応表を表示 / 非表示</button>
+  <div class="mapping-table-wrap" id="mappingWrap">
+    <table>
+      <thead><tr><th>No.</th><th>ピンクワード</th><th>果物語</th></tr></thead>
+      <tbody id="mappingBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// --- mapping.json を読み込む ---
+const MAPPING_PATH = './mapping.json';
+let mappingData = [];
+let direction = 'toReplace'; // 'toReplace' | 'toOriginal'
+let usingCustomFile = false;
+
+async function loadMapping() {
+  try {
+    const res = await fetch(MAPPING_PATH);
+    if (!res.ok) throw new Error('fetch failed');
+    mappingData = await res.json();
+  } catch {
+    // フォールバック: インライン埋め込み
+    mappingData = FALLBACK_MAPPING;
+  }
+  applyMapping();
+}
+
+function applyMapping() {
+  mappingData.sort((a, b) => parseInt(a.number) - parseInt(b.number));
+  renderTable();
+}
+
+// --- ユーザーによるファイル差し替え ---
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data) || !data[0]?.original || !data[0]?.replacement) {
+        showToast('無効なJSON形式です（original/replacement が必要）');
+        return;
+      }
+      mappingData = data;
+      usingCustomFile = true;
+      document.getElementById('currentFileName').textContent = file.name;
+      document.getElementById('resetBtn').style.display = 'inline-block';
+      applyMapping();
+      showToast(`${file.name} を読み込みました（${data.length} 件）`);
+    } catch {
+      showToast('JSONの解析に失敗しました');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetMapping() {
+  usingCustomFile = false;
+  document.getElementById('currentFileName').textContent = 'mapping.json（既定）';
+  document.getElementById('resetBtn').style.display = 'none';
+  loadMapping();
+  showToast('既定のmapping.jsonに戻しました');
+}
+
+// フォールバック用にマッピングデータを直接埋め込む
+const FALLBACK_MAPPING = [
+  {"number":"001","original":"ドライオーガズム","replacement":"ドライフルーツ"},
+  {"number":"002","original":"おちんぽミルク","replacement":"バナナミルク"},
+  {"number":"003","original":"ぬちょぬちょ","replacement":"ネクターネクター"},
+  {"number":"004","original":"へんた～い","replacement":"フルーツマニア～イ"},
+  {"number":"005","original":"いやらしく","replacement":"アマ～ク"},
+  {"number":"006","original":"おちんちん","replacement":"バナナ"},
+  {"number":"007","original":"ぴゅっぴゅ","replacement":"ピューピュー"},
+  {"number":"008","original":"身もだえ","replacement":"フルーツダンス"},
+  {"number":"009","original":"オナニー","replacement":"ブドウモミ"},
+  {"number":"010","original":"シコシコ","replacement":"モギモギ"},
+  {"number":"011","original":"しこしこ","replacement":"もぎもぎ"},
+  {"number":"012","original":"トロトロ","replacement":"ジューシー"},
+  {"number":"013","original":"ビンビン","replacement":"パッツンパッツン"},
+  {"number":"014","original":"メスイキ","replacement":"モモイキ"},
+  {"number":"015","original":"クリイキ","replacement":"サクランボイキ"},
+  {"number":"016","original":"おちんぽ","replacement":"キウイ"},
+  {"number":"017","original":"おっぱい","replacement":"メロン"},
+  {"number":"018","original":"ムラムラ","replacement":"フルーツムズムズ"},
+  {"number":"019","original":"お射精","replacement":"オカジュウフンシュツ"},
+  {"number":"020","original":"性感帯","replacement":"フルーツゾーン"},
+  {"number":"021","original":"貞操体","replacement":"フルーツケース"},
+  {"number":"022","original":"喘ぎ声","replacement":"フルーツボイス"},
+  {"number":"023","original":"絶頂感","replacement":"フルーツピークカン"},
+  {"number":"024","original":"耳舐め","replacement":"ミミフルーツ"},
+  {"number":"025","original":"オナ禁","replacement":"ブドウモミキン"},
+  {"number":"026","original":"焦らし","replacement":"ジラシフルーツ"},
+  {"number":"027","original":"寸止め","replacement":"フルーツストップ"},
+  {"number":"028","original":"しごき","replacement":"モギトリ"},
+  {"number":"029","original":"手コキ","replacement":"ミカンシボリ"},
+  {"number":"030","original":"喘いで","replacement":"ジュクシテ"},
+  {"number":"031","original":"喘げる","replacement":"ジュクセル"},
+  {"number":"032","original":"ちんぽ","replacement":"パイナップル"},
+  {"number":"033","original":"エッチ","replacement":"フルーティ"},
+  {"number":"034","original":"変態","replacement":"フルーツマニア"},
+  {"number":"035","original":"快感","replacement":"フルーツカンショク"},
+  {"number":"036","original":"快楽","replacement":"フルーツカンラク"},
+  {"number":"037","original":"絶頂","replacement":"フルーツピーク"},
+  {"number":"038","original":"勃起","replacement":"ケツジツ"},
+  {"number":"039","original":"隠語","replacement":"フルーツコトバ"},
+  {"number":"040","original":"精液","replacement":"マンゴージュース"},
+  {"number":"041","original":"射精","replacement":"カジュウフンシュツ"},
+  {"number":"042","original":"亀頭","replacement":"イチゴ"},
+  {"number":"043","original":"乳輪","replacement":"リンゴノカワ"},
+  {"number":"044","original":"乳首","replacement":"リンゴ"},
+  {"number":"045","original":"扱く","replacement":"モギトル"},
+  {"number":"046","original":"マゾ","replacement":"フルーツズキ"},
+  {"number":"047","original":"シコ","replacement":"モギ"},
+  {"number":"048","original":"精子","replacement":"バナナジュース"},
+  {"number":"049","original":"メス","replacement":"モモ"},
+  {"number":"050","original":"イき","replacement":"フルーツクライマックス"},
+  {"number":"051","original":"イっ","replacement":"フルーツトップ"},
+  {"number":"052","original":"イく","replacement":"フルーツピークスル"},
+  {"number":"053","original":"裸","replacement":"フルーツスガタ"},
+  {"number":"054","original":"喘","replacement":"ジュク"},
+  {"number":"055","original":"ペニス","replacement":"パパイヤ"},
+  {"number":"056","original":"クリトリス","replacement":"サクランボ"},
+  {"number":"057","original":"オーガズム","replacement":"カンキツゼッチョウ"},
+  {"number":"058","original":"セックス","replacement":"カジュウコウカン"},
+  {"number":"059","original":"フェラ","replacement":"バナナチェック"},
+  {"number":"060","original":"濡れ","replacement":"ツユダク"}
+];
+
+function renderTable() {
+  const tbody = document.getElementById('mappingBody');
+  tbody.innerHTML = mappingData.map(m =>
+    `<tr><td>${m.number}</td><td>${esc(m.original)}</td><td>${esc(m.replacement)}</td></tr>`
+  ).join('');
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// --- 方向切り替え ---
+function setDirection(dir) {
+  direction = dir;
+  document.getElementById('btnOrigToReplace').classList.toggle('active', dir === 'toReplace');
+  document.getElementById('btnReplaceToOrig').classList.toggle('active', dir === 'toOriginal');
+  if (dir === 'toReplace') {
+    document.getElementById('inputLabel').textContent = '入力（ピンクワード）';
+    document.getElementById('outputLabel').textContent = '出力（果物語）';
+  } else {
+    document.getElementById('inputLabel').textContent = '入力（果物語）';
+    document.getElementById('outputLabel').textContent = '出力（ピンクワード）';
+  }
+}
+
+// --- 変換ロジック ---
+function convert() {
+  const input = document.getElementById('inputText').value;
+  if (!input) return;
+
+  // ソースとターゲットを方向に応じて決定
+  let pairs;
+  if (direction === 'toReplace') {
+    pairs = mappingData.map(m => ({ from: m.original, to: m.replacement }));
+  } else {
+    // 果物語→ピンクワード: $付き果物語も変換対象に含める（$を外して元ワードに戻す）
+    pairs = [];
+    mappingData.forEach(m => {
+      pairs.push({ from: `$${m.replacement}$`, to: m.original });
+    });
+    mappingData.forEach(m => {
+      pairs.push({ from: m.replacement, to: m.original });
+    });
+  }
+
+  // 長い文字列を先にマッチさせる（部分一致の問題を回避）
+  pairs.sort((a, b) => b.from.length - a.from.length);
+
+  let result = input;
+  // プレースホルダーで二重置換を防止
+  const placeholders = [];
+  pairs.forEach((p, i) => {
+    const ph = `\x00${i}\x00`;
+    placeholders.push({ ph, to: p.to });
+    result = result.split(p.from).join(ph);
+  });
+  placeholders.forEach(({ ph, to }) => {
+    result = result.split(ph).join(to);
+  });
+
+  document.getElementById('outputText').value = result;
+  updateStats();
+
+  // 変換箇所数のカウント
+  let count = 0;
+  pairs.forEach(p => {
+    const re = new RegExp(escapeRegex(p.from), 'g');
+    const matches = input.match(re);
+    if (matches) count += matches.length;
+  });
+  showToast(`${count} 箇所を変換しました`);
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// --- UI ---
+function copyOutput() {
+  const text = document.getElementById('outputText').value;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => showToast('コピーしました'));
+}
+
+function downloadOutput() {
+  const text = document.getElementById('outputText').value;
+  if (!text) { showToast('出力テキストがありません'); return; }
+  const blob = new Blob([text], { type: 'text/plain; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '変換結果.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('ダウンロードしました');
+}
+
+function clearAll() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('outputText').value = '';
+  updateStats();
+}
+
+function updateStats() {
+  const il = document.getElementById('inputText').value.length;
+  const ol = document.getElementById('outputText').value.length;
+  document.getElementById('inputStats').textContent = `${il} 文字`;
+  document.getElementById('outputStats').textContent = `${ol} 文字`;
+}
+
+document.getElementById('inputText').addEventListener('input', updateStats);
+
+// --- ペースト時に1文字ずつ改行が入っているパターンを自動除去 ---
+document.getElementById('inputText').addEventListener('paste', function(e) {
+  // デフォルトのペーストを防止して、テキストを前処理する
+  e.preventDefault();
+  const pasted = (e.clipboardData || window.clipboardData).getData('text');
+  const cleaned = removePerCharLineBreaks(pasted);
+  // カーソル位置に挿入
+  const ta = this;
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  ta.value = ta.value.substring(0, start) + cleaned + ta.value.substring(end);
+  ta.selectionStart = ta.selectionEnd = start + cleaned.length;
+  updateStats();
+  if (cleaned !== pasted) {
+    showToast('1文字改行を自動除去しました');
+  }
+});
+
+function toggleMapping() {
+  document.getElementById('mappingWrap').classList.toggle('open');
+}
+
+// --- 1文字ずつ改行が入っているパターンを検出・除去 ---
+function removePerCharLineBreaks(text) {
+  // 1文字+改行が3回以上連続するパターンを検出して改行を除去
+  // 例: "リ\nン\nゴ" → "リンゴ"
+  // ただし、意図的な改行（空行や文の区切り）は保持する
+  return text.replace(/((?:.\n){2,})/g, function(match) {
+    // マッチ部分の改行をすべて除去
+    return match.replace(/\n/g, '');
+  });
+}
+
+// --- 手動で改行を除去するボタン用 ---
+function stripLineBreaks() {
+  const ta = document.getElementById('inputText');
+  const original = ta.value;
+  if (!original) return;
+  const cleaned = removePerCharLineBreaks(original);
+  if (cleaned === original) {
+    showToast('除去対象の改行はありませんでした');
+    return;
+  }
+  ta.value = cleaned;
+  updateStats();
+  showToast('1文字改行を除去しました');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// --- txtファイル読み込み ---
+function handleTxtUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  readTxtFile(file);
+  event.target.value = '';
+}
+
+function readTxtFile(file) {
+  if (!file.name.toLowerCase().endsWith('.txt')) {
+    showToast('txtファイルのみ対応しています');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const cleaned = removePerCharLineBreaks(text);
+    document.getElementById('inputText').value = cleaned;
+    document.getElementById('txtFileName').textContent = file.name;
+    updateStats();
+    showToast(`${file.name} を読み込みました`);
+    if (cleaned !== text) {
+      showToast(`${file.name} を読み込みました（1文字改行を自動除去）`);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// --- ドラッグ&ドロップ ---
+const inputTextArea = document.getElementById('inputText');
+
+inputTextArea.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  this.classList.add('drag-over');
+});
+
+inputTextArea.addEventListener('dragleave', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  this.classList.remove('drag-over');
+});
+
+inputTextArea.addEventListener('drop', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  this.classList.remove('drag-over');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    readTxtFile(files[0]);
+  }
+});
+
+// --- 初期化 ---
+loadMapping();
+</script>
+</body>
+</html>

@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音声CSVパターン分析ツール</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  padding: 20px 16px;
+}
+
+h1 { font-size: 1.5rem; margin-bottom: 4px; color: #e94560; text-align: center; }
+.subtitle { font-size: 0.82rem; color: #888; margin-bottom: 18px; text-align: center; }
+
+/* --- Section common --- */
+.section { max-width: 900px; margin: 0 auto 20px; background: #16213e; border-radius: 10px; padding: 16px; }
+.section h2 { font-size: 1.1rem; color: #e94560; margin-bottom: 12px; }
+.section h2 .step-badge {
+  display: inline-block; background: #e94560; color: #fff; font-size: 0.75rem;
+  padding: 2px 10px; border-radius: 12px; margin-right: 8px; vertical-align: middle;
+}
+.section h3 { font-size: 0.95rem; color: #ccc; margin-bottom: 8px; }
+
+/* --- Buttons --- */
+.btn-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; max-width: 900px; margin-left: auto; margin-right: auto; }
+.btn { padding: 8px 18px; border: 2px solid #e94560; border-radius: 8px; background: transparent; color: #e94560; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+.btn:hover { background: #e94560; color: #fff; }
+.btn-primary { background: #e94560; color: #fff; border: 2px solid #e94560; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled { background: #555; border-color: #555; cursor: not-allowed; }
+.btn-success { border-color: #27ae60; color: #27ae60; }
+.btn-success:hover { background: #27ae60; color: #fff; }
+.btn-secondary { background: #0f3460; color: #e0e0e0; border: 1px solid #333; padding: 8px 18px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+.btn-secondary:hover { background: #16213e; }
+.btn-danger { border-color: #c0392b; color: #c0392b; }
+.btn-danger:hover { background: #c0392b; color: #fff; }
+.btn-sm { padding: 5px 12px; font-size: 0.8rem; }
+
+/* --- Drop Zone --- */
+.drop-zone {
+  border: 2px dashed #0f3460; border-radius: 8px; padding: 30px 20px;
+  text-align: center; color: #888; font-size: 0.85rem; cursor: pointer;
+  transition: all 0.2s; margin-bottom: 12px;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: #e94560; color: #e94560; }
+.drop-zone input[type="file"] { display: none; }
+.drop-zone .drop-icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+.drop-zone .drop-hint { font-size: 0.78rem; color: #666; margin-top: 6px; }
+
+/* --- Settings --- */
+.settings-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; }
+.setting-group { display: flex; flex-direction: column; gap: 4px; min-width: 130px; flex: 1; }
+.setting-group label { font-size: 0.78rem; color: #888; }
+.setting-group input[type="number"] {
+  background: #0f3460; border: 1px solid #333; border-radius: 6px;
+  color: #e0e0e0; padding: 6px 8px; width: 100%; font-size: 0.85rem;
+}
+.setting-group input[type="range"] { accent-color: #e94560; width: 100%; }
+.range-row { display: flex; align-items: center; gap: 8px; }
+.range-row input[type="range"] { flex: 1; }
+.range-value { font-size: 0.85rem; color: #e94560; min-width: 50px; text-align: right; font-family: 'Consolas', monospace; }
+
+/* --- Progress --- */
+.progress-bar { width: 100%; height: 6px; background: #0d0d1a; border-radius: 3px; margin-bottom: 12px; overflow: hidden; display: none; }
+.progress-bar.active { display: block; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #e94560, #ff6b81); border-radius: 3px; transition: width 0.3s; width: 0%; }
+.status { font-size: 0.85rem; color: #888; margin-bottom: 10px; min-height: 1.2em; }
+
+/* --- Waveform --- */
+.waveform-wrap {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  overflow-x: auto; overflow-y: hidden; position: relative; cursor: crosshair;
+  margin-bottom: 12px;
+}
+.waveform-wrap::-webkit-scrollbar { height: 6px; }
+.waveform-wrap::-webkit-scrollbar-track { background: #16213e; }
+.waveform-wrap::-webkit-scrollbar-thumb { background: #e94560; border-radius: 3px; }
+canvas#waveformCanvas { display: block; }
+
+/* --- Results Table --- */
+.results-wrapper {
+  max-height: 400px; overflow-y: auto; border-radius: 8px;
+  border: 1px solid #0f3460; margin-bottom: 12px; display: none;
+}
+.results-wrapper.active { display: block; }
+.results-wrapper::-webkit-scrollbar { width: 6px; }
+.results-wrapper::-webkit-scrollbar-track { background: #16213e; }
+.results-wrapper::-webkit-scrollbar-thumb { background: #e94560; border-radius: 3px; }
+.results-table { width: 100%; border-collapse: collapse; }
+.results-table th, .results-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #222; font-size: 0.85rem; }
+.results-table th { background: #16213e; color: #e94560; position: sticky; top: 0; font-weight: 600; z-index: 1; }
+.results-table tr:hover { background: rgba(233, 69, 96, 0.08); }
+.results-table .timestamp { color: #e94560; font-family: 'Consolas', monospace; white-space: nowrap; }
+.results-table .duration { color: #888; font-family: 'Consolas', monospace; white-space: nowrap; }
+.results-table .text-cell { max-width: 300px; word-break: break-word; }
+
+/* --- CSV Preview Table --- */
+.csv-preview-wrapper {
+  max-height: 300px; overflow: auto; border-radius: 8px;
+  border: 1px solid #0f3460; margin-bottom: 12px; display: none;
+}
+.csv-preview-wrapper.active { display: block; }
+.csv-preview-wrapper::-webkit-scrollbar { width: 6px; height: 6px; }
+.csv-preview-wrapper::-webkit-scrollbar-track { background: #16213e; }
+.csv-preview-wrapper::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+.csv-preview-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.csv-preview-table th { background: #0f3460; color: #e94560; padding: 6px 8px; border: 1px solid #0f3460; position: sticky; top: 0; white-space: nowrap; }
+.csv-preview-table td { padding: 4px 8px; border: 1px solid #0f3460; text-align: center; color: #ccc; }
+
+/* --- Timeline Canvas --- */
+.timeline-wrap {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  overflow-x: auto; overflow-y: hidden; margin-bottom: 12px;
+}
+canvas#timelineCanvas { display: block; }
+
+/* --- Pattern Match Cards --- */
+.match-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.match-card {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px; padding: 12px;
+  transition: border-color 0.2s;
+}
+.match-card:hover { border-color: #e94560; }
+.match-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.match-card .card-header .seg-num { color: #e94560; font-weight: 600; font-size: 0.9rem; }
+.match-card .card-header .match-score { font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; }
+.match-score.high { background: rgba(39, 174, 96, 0.2); color: #27ae60; }
+.match-score.medium { background: rgba(243, 156, 18, 0.2); color: #f39c12; }
+.match-score.low { background: rgba(192, 57, 43, 0.2); color: #c0392b; }
+.match-card .card-body { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.83rem; }
+.match-card .card-body .info-col { display: flex; flex-direction: column; gap: 3px; }
+.match-card .card-body .info-label { color: #666; font-size: 0.75rem; }
+.match-card .card-body .info-value { color: #e0e0e0; font-family: 'Consolas', monospace; }
+
+/* --- Summary Stats --- */
+.summary-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin-bottom: 12px;
+}
+.stat-card {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 12px; text-align: center;
+}
+.stat-card .stat-value { font-size: 1.4rem; color: #e94560; font-weight: 700; font-family: 'Consolas', monospace; }
+.stat-card .stat-label { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
+/* --- Template Section --- */
+.template-list {
+  max-height: 250px; overflow-y: auto; border: 1px solid #0f3460; border-radius: 8px;
+  margin-bottom: 12px;
+}
+.template-list::-webkit-scrollbar { width: 6px; }
+.template-list::-webkit-scrollbar-track { background: #16213e; }
+.template-list::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+.template-item {
+  padding: 10px 12px; border-bottom: 1px solid #0f3460; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: background 0.15s;
+}
+.template-item:last-child { border-bottom: none; }
+.template-item:hover { background: rgba(233, 69, 96, 0.08); }
+.template-item.selected { background: rgba(233, 69, 96, 0.15); border-left: 3px solid #e94560; }
+.template-item .template-name { font-size: 0.88rem; color: #e0e0e0; }
+.template-item .template-date { font-size: 0.73rem; color: #666; }
+.template-item .template-actions { display: flex; gap: 6px; }
+.template-detail {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 12px; margin-bottom: 12px; display: none; font-size: 0.83rem;
+}
+.template-detail.active { display: block; }
+.template-detail pre { color: #a0d0a0; font-family: 'Consolas', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
+.template-save-row { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.template-save-row input[type="text"] {
+  flex: 1; min-width: 180px; padding: 8px 12px; border: 1px solid #0f3460;
+  border-radius: 6px; background: #0d0d1a; color: #e0e0e0; font-size: 0.85rem;
+}
+.template-save-row input[type="text"]:focus { outline: none; border-color: #e94560; }
+.template-export-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* --- Apply Template Section --- */
+.apply-select { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.apply-select select {
+  flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #0f3460;
+  border-radius: 6px; background: #0d0d1a; color: #e0e0e0; font-size: 0.85rem;
+  appearance: auto;
+}
+.apply-select select:focus { outline: none; border-color: #e94560; }
+.generated-csv-preview {
+  background: #0d0d1a; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 12px; margin-bottom: 12px; display: none; max-height: 300px; overflow: auto;
+}
+.generated-csv-preview.active { display: block; }
+.generated-csv-preview pre { color: #a0d0a0; font-family: 'Consolas', monospace; font-size: 0.8rem; white-space: pre-wrap; }
+
+/* --- Toast --- */
+.toast-container {
+  position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.toast {
+  background: #16213e; border: 1px solid #0f3460; border-radius: 8px;
+  padding: 12px 20px; color: #e0e0e0; font-size: 0.85rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4); pointer-events: auto;
+  animation: toastIn 0.3s ease;
+}
+.toast.success { border-color: #27ae60; }
+.toast.error { border-color: #c0392b; }
+.toast.info { border-color: #3498db; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+  body { padding: 12px 8px; }
+  .section { padding: 12px; }
+  h1 { font-size: 1.2rem; }
+  .settings-row { flex-direction: column; gap: 10px; }
+  .summary-stats { grid-template-columns: repeat(2, 1fr); }
+  .match-card .card-body { flex-direction: column; }
+  .template-save-row { flex-direction: column; }
+  .apply-select { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ========== Title ========== -->
+<h1>音声CSVパターン分析ツール</h1>
+<p class="subtitle">音声ファイルの発話区間を検出し、CSVパターンとのマッチング分析・テンプレート管理を行います</p>
+
+<!-- ========== Step 1: Audio File ========== -->
+<div class="section" id="sectionAudio">
+  <h2><span class="step-badge">Step 1</span>音声ファイル読み込み</h2>
+
+  <div class="drop-zone" id="audioDropZone">
+    <span class="drop-icon">🎵</span>
+    音声ファイルをドラッグ＆ドロップ、またはクリックして選択
+    <span class="drop-hint">対応形式: WAV / MP3 / OGG / M4A / FLAC</span>
+    <input type="file" id="audioFileInput" accept=".wav,.mp3,.ogg,.m4a,.flac,audio/wav,audio/mpeg,audio/ogg,audio/mp4,audio/flac">
+  </div>
+
+  <div id="audioInfo" class="status"></div>
+
+  <!-- Speech Detection Settings -->
+  <h3>発話検出設定</h3>
+  <div class="settings-row">
+    <div class="setting-group">
+      <label>無音閾値 (dB)</label>
+      <div class="range-row">
+        <input type="range" id="silenceThreshold" min="-60" max="-20" value="-40" step="1">
+        <span class="range-value" id="silenceThresholdValue">-40 dB</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>最小無音区間 (秒)</label>
+      <div class="range-row">
+        <input type="range" id="minSilenceDuration" min="0.1" max="2.0" value="0.5" step="0.05">
+        <span class="range-value" id="minSilenceDurationValue">0.50 s</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>最小発話区間 (秒)</label>
+      <div class="range-row">
+        <input type="range" id="minSpeechDuration" min="0.05" max="1.0" value="0.2" step="0.05">
+        <span class="range-value" id="minSpeechDurationValue">0.20 s</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detect Button + Progress -->
+  <div class="btn-row">
+    <button class="btn btn-primary" id="detectBtn" disabled>発話区間を検出</button>
+  </div>
+  <div class="progress-bar" id="detectProgress"><div class="progress-fill" id="detectProgressFill"></div></div>
+  <div class="status" id="detectStatus"></div>
+
+  <!-- Waveform Canvas -->
+  <div class="waveform-wrap" id="waveformWrap">
+    <canvas id="waveformCanvas" width="900" height="200"></canvas>
+  </div>
+
+  <!-- Speech Segments Results Table -->
+  <div class="results-wrapper" id="segmentsWrapper">
+    <table class="results-table" id="segmentsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>開始</th>
+          <th>終了</th>
+          <th>長さ</th>
+          <th>テキスト</th>
+        </tr>
+      </thead>
+      <tbody id="segmentsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== Step 2: CSV Import ========== -->
+<div class="section" id="sectionCSV">
+  <h2><span class="step-badge">Step 2</span>CSVファイル読み込み</h2>
+
+  <div class="drop-zone" id="csvDropZone">
+    <span class="drop-icon">📄</span>
+    CSVファイルをドラッグ＆ドロップ、またはクリックして選択
+    <span class="drop-hint">対応形式: CSV / TSV</span>
+    <input type="file" id="csvFileInput" accept=".csv,.tsv,text/csv">
+  </div>
+
+  <div id="csvInfo" class="status"></div>
+
+  <!-- CSV Preview Table -->
+  <div class="csv-preview-wrapper" id="csvPreviewWrapper">
+    <table class="csv-preview-table" id="csvPreviewTable">
+      <thead id="csvPreviewHead"></thead>
+      <tbody id="csvPreviewBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== Step 3: Pattern Analysis ========== -->
+<div class="section" id="sectionAnalysis">
+  <h2><span class="step-badge">Step 3</span>パターン分析</h2>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="analyzeBtn" disabled>分析開始</button>
+  </div>
+  <div class="progress-bar" id="analyzeProgress"><div class="progress-fill" id="analyzeProgressFill"></div></div>
+  <div class="status" id="analyzeStatus"></div>
+
+  <!-- Timeline Visualization -->
+  <div class="timeline-wrap" id="timelineWrap" style="display:none;">
+    <canvas id="timelineCanvas" width="900" height="120"></canvas>
+  </div>
+
+  <!-- Pattern Match Results (Cards) -->
+  <div class="match-cards" id="matchCards"></div>
+
+  <!-- Summary Statistics -->
+  <div class="summary-stats" id="summaryStats" style="display:none;">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotalSegments">0</div>
+      <div class="stat-label">検出セグメント数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statMatchedSegments">0</div>
+      <div class="stat-label">マッチ数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statMatchRate">0%</div>
+      <div class="stat-label">マッチ率</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statAvgScore">0</div>
+      <div class="stat-label">平均スコア</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statTotalDuration">0.0s</div>
+      <div class="stat-label">総発話時間</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statCsvRows">0</div>
+      <div class="stat-label">CSV行数</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Step 4: Template Library ========== -->
+<div class="section" id="sectionTemplate">
+  <h2><span class="step-badge">Step 4</span>テンプレートライブラリ</h2>
+
+  <!-- Template List -->
+  <h3>保存済みテンプレート</h3>
+  <div class="template-list" id="templateList">
+    <div class="template-item" style="color:#666; justify-content:center; cursor:default;">テンプレートがありません</div>
+  </div>
+
+  <!-- Template Detail View -->
+  <div class="template-detail" id="templateDetail">
+    <h3 id="templateDetailName">テンプレート詳細</h3>
+    <pre id="templateDetailContent"></pre>
+  </div>
+
+  <!-- Save Current Analysis as Template -->
+  <h3>現在の分析をテンプレートとして保存</h3>
+  <div class="template-save-row">
+    <input type="text" id="templateNameInput" placeholder="テンプレート名を入力...">
+    <button class="btn btn-primary btn-sm" id="saveTemplateBtn" disabled>保存</button>
+  </div>
+
+  <!-- Export / Import -->
+  <h3>エクスポート / インポート</h3>
+  <div class="template-export-row">
+    <button class="btn btn-secondary btn-sm" id="exportTemplatesBtn">テンプレートをエクスポート</button>
+    <button class="btn btn-secondary btn-sm" id="importTemplatesBtn">テンプレートをインポート</button>
+    <input type="file" id="importTemplatesInput" accept=".json" style="display:none;">
+  </div>
+</div>
+
+<!-- ========== Step 5: Apply Template ========== -->
+<div class="section" id="sectionApply">
+  <h2><span class="step-badge">Step 5</span>テンプレート適用</h2>
+
+  <h3>テンプレートを選択して新しい音声に適用</h3>
+  <div class="apply-select">
+    <select id="applyTemplateSelect">
+      <option value="">-- テンプレートを選択 --</option>
+    </select>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="applyTemplateBtn" disabled>新しい音声にテンプレート適用</button>
+  </div>
+  <div class="progress-bar" id="applyProgress"><div class="progress-fill" id="applyProgressFill"></div></div>
+  <div class="status" id="applyStatus"></div>
+
+  <!-- Generated CSV Preview -->
+  <div class="generated-csv-preview" id="generatedCsvPreview">
+    <h3>生成されたCSV</h3>
+    <pre id="generatedCsvContent"></pre>
+  </div>
+
+  <div class="btn-row" id="downloadRow" style="display:none;">
+    <button class="btn btn-success" id="downloadCsvBtn">CSVをダウンロード</button>
+  </div>
+</div>
+
+<!-- ========== Toast Notification ========== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ====== Global Variables ======
+let audioContext, audioBuffer, audioSource, isPlaying = false, playOffset = 0;
+let segments = []; // detected speech segments
+let csvData = null; // parsed CSV
+let csvFormat = 3; // 3-col or 5-col
+let analysisResults = null;
+let templateLibrary = JSON.parse(localStorage.getItem('patternTemplates') || '[]');
+
+let waveformData = null;
+
+// ====== Helpers ======
+function yieldToMain() {
+  return new Promise(r => setTimeout(r, 0));
+}
+
+function formatTimeFull(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 100);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ====== Toast Notification ======
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#c0392b' : '#27ae60';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ====== Audio Loading ======
+function initAudioDropZone() {
+  const dropZone = document.getElementById('audioDropZone');
+  const fileInput = document.getElementById('audioFileInput');
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('audio/')) {
+      loadAudioFile(file);
+    }
+  });
+  dropZone.addEventListener('click', () => {
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files ? e.target.files[0] : null;
+    if (file) loadAudioFile(file);
+  });
+}
+
+function extractWaveform(buffer, samples) {
+  const channel = buffer.getChannelData(0);
+  const blockSize = Math.floor(channel.length / samples);
+  const data = [];
+  for (let i = 0; i < samples; i++) {
+    let sum = 0;
+    const start = i * blockSize;
+    for (let j = 0; j < blockSize; j++) sum += Math.abs(channel[start + j]);
+    data.push(sum / blockSize);
+  }
+  const max = Math.max(...data) || 1;
+  return data.map(v => v / max);
+}
+
+function loadAudioFile(file) {
+  if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const statusEl = document.getElementById('status');
+  if (statusEl) statusEl.textContent = `ファイル読み込み中: ${file.name}`;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    audioContext.decodeAudioData(e.target.result, function(buffer) {
+      audioBuffer = buffer;
+      waveformData = extractWaveform(buffer, 860);
+
+      const detectBtn = document.getElementById('detectBtn');
+      if (detectBtn) detectBtn.disabled = false;
+
+      drawWaveform();
+
+      if (statusEl) statusEl.textContent = `読み込み完了: ${file.name} (${formatTimeFull(buffer.duration)})`;
+      showToast('音声ファイルを読み込みました');
+    }, function() {
+      if (statusEl) statusEl.textContent = 'エラー: 音声ファイルを読み込めませんでした';
+      showToast('音声ファイルのデコードに失敗しました', true);
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ====== Speech Segment Detection (VoiceSync algorithm) ======
+async function detectSpeechSegments() {
+  const thresholdDb = parseFloat(document.getElementById('silenceThreshold').value);
+  const thresholdLinear = Math.pow(10, thresholdDb / 20);
+  const minSilence = parseFloat(document.getElementById('minSilenceDuration').value);
+  const minSpeech = parseFloat(document.getElementById('minSpeechDuration').value);
+  const sampleRate = audioBuffer.sampleRate;
+  const length = audioBuffer.length;
+  const mono = new Float32Array(length);
+  const CHUNK_SIZE = 500000;
+
+  // Convert to mono by averaging channels
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    const channelData = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < length; i += CHUNK_SIZE) {
+      const end = Math.min(i + CHUNK_SIZE, length);
+      for (let j = i; j < end; j++) mono[j] += channelData[j];
+      if (ch === 0) await yieldToMain();
+    }
+  }
+  const numChannels = audioBuffer.numberOfChannels;
+  for (let i = 0; i < length; i += CHUNK_SIZE) {
+    const end = Math.min(i + CHUNK_SIZE, length);
+    for (let j = i; j < end; j++) mono[j] /= numChannels;
+    await yieldToMain();
+  }
+
+  // Frame-based RMS calculation
+  const frameSize = Math.floor(sampleRate * 0.02);
+  const hopSize = Math.floor(sampleRate * 0.01);
+  const numFrames = Math.floor((length - frameSize) / hopSize) + 1;
+  const isSpeech = new Uint8Array(numFrames);
+  const frameRMS = new Float32Array(numFrames);
+  const FRAME_CHUNK = 50000;
+
+  for (let f = 0; f < numFrames; f += FRAME_CHUNK) {
+    const fEnd = Math.min(f + FRAME_CHUNK, numFrames);
+    for (let ff = f; ff < fEnd; ff++) {
+      const start = ff * hopSize;
+      let sum = 0;
+      for (let i = 0; i < frameSize; i++) {
+        const val = mono[start + i] || 0;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / frameSize);
+      frameRMS[ff] = rms;
+      isSpeech[ff] = rms > thresholdLinear ? 1 : 0;
+    }
+    await yieldToMain();
+  }
+
+  // Merge segments respecting min silence/speech duration
+  const result = [];
+  let inSpeech = false, segStart = 0, silenceStart = 0;
+  const minSilenceFrames = Math.ceil(minSilence / 0.01);
+
+  for (let f = 0; f < numFrames; f++) {
+    if (isSpeech[f]) {
+      if (!inSpeech) { segStart = f; inSpeech = true; }
+      silenceStart = f + 1;
+    } else {
+      if (inSpeech && (f - silenceStart) >= minSilenceFrames) {
+        const startTime = segStart * 0.01;
+        const endTime = silenceStart * 0.01;
+        if ((endTime - startTime) >= minSpeech) {
+          let rmsSum = 0, rmsCount = 0;
+          for (let rf = segStart; rf < silenceStart; rf++) { rmsSum += frameRMS[rf]; rmsCount++; }
+          result.push({ start: startTime, end: endTime, text: '', avgRMS: rmsSum / (rmsCount || 1) });
+        }
+        inSpeech = false;
+      }
+    }
+  }
+  // Handle trailing speech segment
+  if (inSpeech) {
+    const startTime = segStart * 0.01;
+    const endTime = (numFrames - 1) * 0.01;
+    if ((endTime - startTime) >= minSpeech) {
+      let rmsSum = 0, rmsCount = 0;
+      for (let rf = segStart; rf < numFrames; rf++) { rmsSum += frameRMS[rf]; rmsCount++; }
+      result.push({ start: startTime, end: endTime, text: '', avgRMS: rmsSum / (rmsCount || 1) });
+    }
+  }
+
+  // Normalize RMS values
+  const maxRMS = Math.max(...result.map(s => s.avgRMS)) || 1;
+  result.forEach(s => s.normalizedRMS = s.avgRMS / maxRMS);
+
+  return result;
+}
+
+// ====== Start Speech Detection ======
+async function startSpeechDetection() {
+  if (!audioBuffer) return;
+
+  const detectBtn = document.getElementById('detectBtn');
+  if (detectBtn) detectBtn.disabled = true;
+
+  const progressBar = document.getElementById('progressBar');
+  const progressFill = document.getElementById('progressFill');
+  if (progressBar) progressBar.classList.add('active');
+  if (progressFill) progressFill.style.width = '0%';
+
+  const resultsBody = document.getElementById('resultsBody');
+  if (resultsBody) resultsBody.innerHTML = '';
+  segments = [];
+
+  const statusEl = document.getElementById('status');
+  if (statusEl) statusEl.textContent = 'セリフ区間を解析中...';
+
+  segments = await detectSpeechSegments();
+
+  if (progressFill) progressFill.style.width = '50%';
+  if (statusEl) statusEl.textContent = `${segments.length} 個のセリフ区間を検出`;
+
+  if (progressFill) progressFill.style.width = '100%';
+
+  renderSegmentResults();
+  drawWaveform(playOffset);
+
+  if (detectBtn) detectBtn.disabled = false;
+  if (statusEl) statusEl.textContent = `完了: ${segments.length} 個のセリフ区間を検出`;
+
+  setTimeout(() => {
+    if (progressBar) progressBar.classList.remove('active');
+  }, 1000);
+}
+
+// ====== Render Segment Results ======
+function renderSegmentResults() {
+  const body = document.getElementById('resultsBody');
+  if (!body) return;
+  body.innerHTML = '';
+
+  if (segments.length === 0) return;
+
+  segments.forEach((seg, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td class="timestamp" data-time="${seg.start}" title="クリックで再生">${formatTimeFull(seg.start)}</td>
+      <td class="timestamp" data-time="${seg.end}" title="クリックで再生">${formatTimeFull(seg.end)}</td>
+      <td class="duration">${(seg.end - seg.start).toFixed(2)}s</td>
+      <td class="text-cell">${seg.text ? escapeHtml(seg.text) : '<span style="color:#555">—</span>'}</td>`;
+    tr.querySelectorAll('.timestamp').forEach(td => {
+      td.addEventListener('click', () => {
+        stopPlayback();
+        playFromTime(parseFloat(td.dataset.time));
+      });
+    });
+    body.appendChild(tr);
+  });
+}
+
+// ====== Playback ======
+function playFromTime(time) {
+  if (!audioBuffer || !audioContext) return;
+  stopPlayback();
+
+  audioSource = audioContext.createBufferSource();
+  audioSource.buffer = audioBuffer;
+  audioSource.connect(audioContext.destination);
+  audioSource.onended = function() {
+    isPlaying = false;
+    playOffset = 0;
+  };
+  playOffset = time;
+  audioSource.start(0, time);
+  isPlaying = true;
+}
+
+function stopPlayback() {
+  if (isPlaying && audioSource) {
+    audioSource.onended = null;
+    audioSource.stop();
+    isPlaying = false;
+  }
+  playOffset = 0;
+}
+
+// ====== Waveform Drawing ======
+function drawWaveform(currentTime) {
+  const canvas = document.getElementById('waveformCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0, 0, W, H);
+  if (!waveformData) return;
+  const midY = H / 2;
+
+  // Draw waveform bars
+  for (let i = 0; i < waveformData.length; i++) {
+    const val = waveformData[i];
+    const barH = val * midY * 0.9;
+    ctx.fillStyle = '#0f3460';
+    ctx.fillRect(i, midY - barH, 1, barH * 2);
+  }
+
+  // Overlay detected segments (green rectangles)
+  if (segments.length > 0 && audioBuffer) {
+    const dur = audioBuffer.duration;
+    ctx.fillStyle = 'rgba(46, 213, 115, 0.12)';
+    for (const seg of segments) {
+      const x = (seg.start / dur) * W;
+      const w = ((seg.end - seg.start) / dur) * W;
+      ctx.fillRect(x, 0, w, H);
+    }
+  }
+
+  // Time labels
+  if (audioBuffer) {
+    ctx.fillStyle = '#555';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    const dur = audioBuffer.duration;
+    let labelInterval;
+    if (dur <= 10) labelInterval = 1;
+    else if (dur <= 30) labelInterval = 2;
+    else if (dur <= 60) labelInterval = 5;
+    else if (dur <= 120) labelInterval = 10;
+    else labelInterval = Math.max(1, Math.floor(dur / 10));
+    for (let s = 0; s <= dur; s += labelInterval) {
+      const x = (s / dur) * W;
+      ctx.fillText(formatTimeFull(s), x, H - 2);
+    }
+  }
+
+  // Playhead
+  if (currentTime !== undefined && audioBuffer) {
+    const x = (currentTime / audioBuffer.duration) * W;
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+}
+
+// ============================================================
+// Part 3: CSV Import/Parse, Pattern Alignment, Classification,
+//         and Template Management
+// ============================================================
+
+// --- Global State ---
+let csvData = [];
+let analysisResults = [];
+let templateLibrary = JSON.parse(localStorage.getItem('patternTemplates') || '[]');
+let generatedCsvRows = [];
+
+// ============================================================
+// CSV Import & Parse
+// ============================================================
+
+/**
+ * 1. initCsvDropZone()
+ * Sets up drag/drop on #csvDropZone and file input #csvFileInput.
+ */
+function initCsvDropZone() {
+  const dropZone = document.getElementById('csvDropZone');
+  const fileInput = document.getElementById('csvFileInput');
+
+  if (dropZone) {
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        loadCsvFile(files[0]);
+      }
+    });
+
+    dropZone.addEventListener('click', () => {
+      if (fileInput) fileInput.click();
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        loadCsvFile(e.target.files[0]);
+      }
+    });
+  }
+}
+
+/**
+ * 2. loadCsvFile(file)
+ * Reads a CSV file using FileReader and parses it.
+ */
+function loadCsvFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    csvData = parseCsvText(text);
+    renderCsvPreview();
+    console.log(`CSV loaded: ${csvData.length} rows`);
+  };
+  reader.onerror = () => {
+    console.error('Failed to read CSV file');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+/**
+ * 3. parseCsvText(text)
+ * Parses CSV text into an array of objects.
+ * Auto-detects 3-column (time, direction, speed) vs
+ * 5-column (time, leftDir, leftSpeed, rightDir, rightSpeed).
+ * Time is stored in deci-seconds; timeSec = time / 10.
+ */
+function parseCsvText(text) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== '');
+  if (lines.length === 0) return [];
+
+  const results = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const cols = line.split(',').map((c) => c.trim());
+
+    // Skip header rows that contain non-numeric first column
+    if (i === 0 && isNaN(parseFloat(cols[0]))) {
+      continue;
+    }
+
+    const time = parseFloat(cols[0]);
+    if (isNaN(time)) continue;
+
+    const timeSec = time / 10;
+
+    if (cols.length >= 5) {
+      // 5-column format: time, leftDir, leftSpeed, rightDir, rightSpeed
+      results.push({
+        time: time,
+        timeSec: timeSec,
+        direction: parseFloat(cols[1]) || 0,
+        speed: parseFloat(cols[2]) || 0,
+        leftDir: parseFloat(cols[1]) || 0,
+        leftSpeed: parseFloat(cols[2]) || 0,
+        rightDir: parseFloat(cols[3]) || 0,
+        rightSpeed: parseFloat(cols[4]) || 0,
+      });
+    } else if (cols.length >= 3) {
+      // 3-column format: time, direction, speed
+      const direction = parseFloat(cols[1]) || 0;
+      const speed = parseFloat(cols[2]) || 0;
+      results.push({
+        time: time,
+        timeSec: timeSec,
+        direction: direction,
+        speed: speed,
+        leftDir: direction,
+        leftSpeed: speed,
+        rightDir: direction,
+        rightSpeed: speed,
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * 4. renderCsvPreview()
+ * Shows the first 50 rows in table body #csvPreviewBody.
+ */
+function renderCsvPreview() {
+  const tbody = document.getElementById('csvPreviewBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  const maxRows = Math.min(csvData.length, 50);
+  for (let i = 0; i < maxRows; i++) {
+    const row = csvData[i];
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${row.time}</td>` +
+      `<td>${row.timeSec.toFixed(1)}</td>` +
+      `<td>${row.leftDir}</td>` +
+      `<td>${row.leftSpeed}</td>` +
+      `<td>${row.rightDir}</td>` +
+      `<td>${row.rightSpeed}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+// ============================================================
+// Pattern Alignment & Analysis
+// ============================================================
+
+/**
+ * 5. runAnalysis()
+ * Main analysis function, called by the "分析開始" button.
+ * Requires both segments[] and csvData to be populated.
+ */
+function runAnalysis() {
+  if (typeof segments === 'undefined' || !segments || segments.length === 0) {
+    alert('音声セグメントが読み込まれていません。先に音声を分析してください。');
+    return;
+  }
+  if (!csvData || csvData.length === 0) {
+    alert('CSVデータが読み込まれていません。先にCSVファイルを読み込んでください。');
+    return;
+  }
+
+  analysisResults = [];
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const segStart = seg.start;
+    const segEnd = seg.end;
+
+    // Find overlapping CSV rows for this speech segment
+    const overlappingRows = csvData.filter(
+      (row) => row.timeSec >= segStart && row.timeSec <= segEnd
+    );
+
+    // Find CSV rows in the silence gap before this segment
+    const prevEnd = i > 0 ? segments[i - 1].end : 0;
+    const gapRows = csvData.filter(
+      (row) => row.timeSec >= prevEnd && row.timeSec < segStart
+    );
+
+    const dialoguePattern = classifyDialoguePattern(seg);
+    const csvPattern = classifyCsvPattern(overlappingRows);
+    const gapCsvPattern = classifyCsvPattern(gapRows);
+
+    analysisResults.push({
+      segmentIndex: i,
+      segment: seg,
+      start: segStart,
+      end: segEnd,
+      duration: segEnd - segStart,
+      dialoguePattern: dialoguePattern,
+      csvPattern: csvPattern,
+      gapCsvPattern: gapCsvPattern,
+      overlappingCsvRows: overlappingRows,
+      gapCsvRows: gapRows,
+    });
+  }
+
+  renderAnalysisResults();
+  console.log(`Analysis complete: ${analysisResults.length} segments analyzed`);
+}
+
+/**
+ * 6. classifyDialoguePattern(segment)
+ * Classifies a speech segment by duration and intensity.
+ */
+function classifyDialoguePattern(segment) {
+  const duration = (segment.end || 0) - (segment.start || 0);
+
+  // Duration category
+  let durationType;
+  if (duration < 0.5) {
+    durationType = '極短';
+  } else if (duration < 1.5) {
+    durationType = '短';
+  } else if (duration < 3) {
+    durationType = '中';
+  } else if (duration < 6) {
+    durationType = '長';
+  } else {
+    durationType = '超長';
+  }
+
+  // Intensity category based on normalizedRMS
+  const rms = segment.normalizedRMS || segment.rms || 0;
+  let intensityType;
+  if (rms < 0.3) {
+    intensityType = '弱';
+  } else if (rms < 0.6) {
+    intensityType = '中';
+  } else if (rms < 0.85) {
+    intensityType = '強';
+  } else {
+    intensityType = '最強';
+  }
+
+  const label = durationType + '・' + intensityType;
+
+  return {
+    durationType: durationType,
+    intensityType: intensityType,
+    duration: duration,
+    rms: rms,
+    label: label,
+  };
+}
+
+/**
+ * 7. classifyCsvPattern(csvRows)
+ * Classifies a series of CSV rows into a named pattern.
+ */
+function classifyCsvPattern(csvRows) {
+  // No rows or all speed 0
+  if (!csvRows || csvRows.length === 0) {
+    return { type: '無音', label: '無音' };
+  }
+
+  const speeds = csvRows.map((r) => r.speed);
+  const directions = csvRows.map((r) => r.direction);
+  const allZero = speeds.every((s) => s === 0);
+
+  if (allZero) {
+    return { type: '無音', label: '無音' };
+  }
+
+  const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+  const minSpeed = Math.min(...speeds);
+  const maxSpeed = Math.max(...speeds);
+  const rowCount = csvRows.length;
+
+  // Direction pattern detection
+  let directionPattern = 'mixed';
+  if (directions.every((d) => d === 0)) {
+    directionPattern = 'all_0';
+  } else if (directions.every((d) => d === 1)) {
+    directionPattern = 'all_1';
+  } else {
+    // Check for alternating
+    let alternating = true;
+    for (let i = 1; i < directions.length; i++) {
+      if (directions[i] === directions[i - 1]) {
+        alternating = false;
+        break;
+      }
+    }
+    if (alternating && directions.length > 1) {
+      directionPattern = 'alternating';
+    }
+  }
+
+  const baseResult = {
+    avgSpeed: Math.round(avgSpeed),
+    minSpeed: minSpeed,
+    maxSpeed: maxSpeed,
+    directionPattern: directionPattern,
+    rowCount: rowCount,
+    speeds: speeds,
+    directions: directions,
+  };
+
+  // Check for 正逆交互 (frequent direction changes)
+  let dirChanges = 0;
+  for (let i = 1; i < directions.length; i++) {
+    if (directions[i] !== directions[i - 1]) {
+      dirChanges++;
+    }
+  }
+  if (dirChanges > rowCount / 3 && rowCount > 2) {
+    return Object.assign(baseResult, {
+      type: 'alternate',
+      label: '正逆交互',
+    });
+  }
+
+  // Check for 一定 (constant): all speeds within ±5 of average
+  const allConstant = speeds.every((s) => Math.abs(s - avgSpeed) <= 5);
+  if (allConstant) {
+    return Object.assign(baseResult, {
+      type: 'constant',
+      label: '一定(速度' + Math.round(avgSpeed) + ')',
+    });
+  }
+
+  // Correlation-based detection
+  const correlation = calculateCorrelation(speeds);
+
+  // Check for 加速 (acceleration)
+  if (correlation > 0.7) {
+    const startSpeed = speeds[0];
+    const endSpeed = speeds[speeds.length - 1];
+
+    // Check for クライマックス (increase then drop)
+    const peakIndex = speeds.indexOf(maxSpeed);
+    if (
+      peakIndex > 0 &&
+      peakIndex < speeds.length - 1 &&
+      speeds[speeds.length - 1] < maxSpeed * 0.5
+    ) {
+      return Object.assign(baseResult, {
+        type: 'climax',
+        peakSpeed: maxSpeed,
+        label: 'クライマックス(' + Math.round(maxSpeed) + ')',
+      });
+    }
+
+    return Object.assign(baseResult, {
+      type: 'accel',
+      startSpeed: startSpeed,
+      endSpeed: endSpeed,
+      label: '加速(' + Math.round(startSpeed) + '→' + Math.round(endSpeed) + ')',
+    });
+  }
+
+  // Check for 減速 (deceleration)
+  if (correlation < -0.7) {
+    const startSpeed = speeds[0];
+    const endSpeed = speeds[speeds.length - 1];
+    return Object.assign(baseResult, {
+      type: 'decel',
+      startSpeed: startSpeed,
+      endSpeed: endSpeed,
+      label: '減速(' + Math.round(startSpeed) + '→' + Math.round(endSpeed) + ')',
+    });
+  }
+
+  // Check for クライマックス without strong correlation
+  // (increase then sharp drop)
+  if (speeds.length >= 3) {
+    const peakIndex = speeds.indexOf(maxSpeed);
+    if (
+      peakIndex > speeds.length * 0.3 &&
+      peakIndex < speeds.length - 1 &&
+      speeds[speeds.length - 1] < maxSpeed * 0.4
+    ) {
+      return Object.assign(baseResult, {
+        type: 'climax',
+        peakSpeed: maxSpeed,
+        label: 'クライマックス(' + Math.round(maxSpeed) + ')',
+      });
+    }
+  }
+
+  // Check for パルス (alternating high/low values)
+  let pulseCount = 0;
+  for (let i = 1; i < speeds.length; i++) {
+    const diff = Math.abs(speeds[i] - speeds[i - 1]);
+    if (diff > avgSpeed * 0.5) {
+      pulseCount++;
+    }
+  }
+  if (pulseCount > speeds.length * 0.6 && speeds.length > 2) {
+    return Object.assign(baseResult, {
+      type: 'pulse',
+      label: 'パルス(平均' + Math.round(avgSpeed) + ')',
+    });
+  }
+
+  // Check for 波状 (oscillation: count direction changes > rows/3)
+  let speedDirChanges = 0;
+  for (let i = 2; i < speeds.length; i++) {
+    const prev = speeds[i - 1] - speeds[i - 2];
+    const curr = speeds[i] - speeds[i - 1];
+    if ((prev > 0 && curr < 0) || (prev < 0 && curr > 0)) {
+      speedDirChanges++;
+    }
+  }
+  if (speedDirChanges > rowCount / 3 && rowCount > 3) {
+    const amplitude = maxSpeed - minSpeed;
+    return Object.assign(baseResult, {
+      type: 'wave',
+      amplitude: amplitude,
+      label: '波状(平均' + Math.round(avgSpeed) + ')',
+    });
+  }
+
+  // Default: カスタム
+  return Object.assign(baseResult, {
+    type: 'custom',
+    label: 'カスタム',
+  });
+}
+
+/**
+ * 8. renderAnalysisResults()
+ * Draws timeline on canvas #timelineCanvas, creates pattern cards
+ * in #analysisCards, and shows summary in #analysisSummary.
+ */
+function renderAnalysisResults() {
+  drawTimeline();
+  renderPatternCards();
+  renderAnalysisSummary();
+}
+
+/**
+ * Draws the timeline visualization on #timelineCanvas.
+ */
+function drawTimeline() {
+  const canvas = document.getElementById('timelineCanvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width || 800;
+  const height = canvas.height || 150;
+
+  canvas.width = width;
+  canvas.height = height;
+  ctx.clearRect(0, 0, width, height);
+
+  if (analysisResults.length === 0) return;
+
+  // Determine total duration
+  const lastResult = analysisResults[analysisResults.length - 1];
+  const totalDuration = lastResult.end + 1;
+  const pxPerSec = width / totalDuration;
+
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, width, height);
+
+  // CSV pattern color map
+  const patternColors = {
+    '無音': '#333333',
+    constant: '#4a90d9',
+    accel: '#e8a838',
+    decel: '#8bc34a',
+    wave: '#9c27b0',
+    pulse: '#f44336',
+    alternate: '#00bcd4',
+    climax: '#ff5722',
+    custom: '#607d8b',
+  };
+
+  // Draw CSV pattern bars (bottom half)
+  const csvBarY = height * 0.55;
+  const csvBarH = height * 0.35;
+
+  analysisResults.forEach((result) => {
+    // Speech segment CSV overlay
+    const x = result.start * pxPerSec;
+    const w = Math.max((result.end - result.start) * pxPerSec, 2);
+    const color = patternColors[result.csvPattern.type] || patternColors.custom;
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x, csvBarY, w, csvBarH);
+
+    // Label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '9px sans-serif';
+    if (w > 30) {
+      ctx.fillText(result.csvPattern.label, x + 2, csvBarY + csvBarH - 4);
+    }
+  });
+
+  // Draw speech segments (top half, green)
+  const segBarY = height * 0.05;
+  const segBarH = height * 0.4;
+
+  analysisResults.forEach((result) => {
+    const x = result.start * pxPerSec;
+    const w = Math.max((result.end - result.start) * pxPerSec, 2);
+
+    ctx.fillStyle = '#4caf50';
+    ctx.globalAlpha = 0.8;
+    ctx.fillRect(x, segBarY, w, segBarH);
+    ctx.globalAlpha = 1.0;
+
+    // Segment number label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px sans-serif';
+    if (w > 15) {
+      ctx.fillText(
+        '#' + (result.segmentIndex + 1),
+        x + 2,
+        segBarY + 12
+      );
+    }
+  });
+
+  // Time axis
+  ctx.strokeStyle = '#666666';
+  ctx.fillStyle = '#aaaaaa';
+  ctx.font = '10px sans-serif';
+  const tickInterval = Math.ceil(totalDuration / 20) || 1;
+  for (let t = 0; t <= totalDuration; t += tickInterval) {
+    const x = t * pxPerSec;
+    ctx.beginPath();
+    ctx.moveTo(x, height - 15);
+    ctx.lineTo(x, height - 10);
+    ctx.stroke();
+    ctx.fillText(t.toFixed(0) + 's', x, height - 2);
+  }
+}
+
+/**
+ * Renders pattern cards in #analysisCards.
+ */
+function renderPatternCards() {
+  const container = document.getElementById('analysisCards');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  analysisResults.forEach((result) => {
+    const card = document.createElement('div');
+    card.className = 'analysis-card';
+
+    const speedRange =
+      result.csvPattern.type === '無音'
+        ? '-'
+        : result.csvPattern.minSpeed + '～' + result.csvPattern.maxSpeed;
+
+    card.innerHTML =
+      '<div class="card-header">' +
+      '<span class="segment-num">セグメント #' +
+      (result.segmentIndex + 1) +
+      '</span>' +
+      '<span class="time-range">' +
+      result.start.toFixed(1) +
+      's ～ ' +
+      result.end.toFixed(1) +
+      's</span>' +
+      '</div>' +
+      '<div class="card-body">' +
+      '<div class="pattern-row">' +
+      '<span class="pattern-label">台詞パターン:</span>' +
+      '<span class="pattern-value">' +
+      result.dialoguePattern.label +
+      '</span>' +
+      '</div>' +
+      '<div class="pattern-row">' +
+      '<span class="pattern-label">CSVパターン:</span>' +
+      '<span class="pattern-value csv-pattern-' +
+      result.csvPattern.type +
+      '">' +
+      result.csvPattern.label +
+      '</span>' +
+      '</div>' +
+      '<div class="pattern-row">' +
+      '<span class="pattern-label">速度範囲:</span>' +
+      '<span class="pattern-value">' +
+      speedRange +
+      '</span>' +
+      '</div>' +
+      '</div>';
+
+    container.appendChild(card);
+  });
+}
+
+/**
+ * Renders analysis summary in #analysisSummary.
+ */
+function renderAnalysisSummary() {
+  const container = document.getElementById('analysisSummary');
+  if (!container) return;
+
+  const totalSegments = analysisResults.length;
+
+  // Count pattern distribution
+  const patternCounts = {};
+  analysisResults.forEach((result) => {
+    const type = result.csvPattern.label;
+    patternCounts[type] = (patternCounts[type] || 0) + 1;
+  });
+
+  let tableRows = '';
+  for (const [pattern, count] of Object.entries(patternCounts)) {
+    const pct = ((count / totalSegments) * 100).toFixed(1);
+    tableRows +=
+      '<tr>' +
+      '<td>' + pattern + '</td>' +
+      '<td>' + count + '</td>' +
+      '<td>' + pct + '%</td>' +
+      '</tr>';
+  }
+
+  container.innerHTML =
+    '<h3>分析サマリー</h3>' +
+    '<p>総セグメント数: ' + totalSegments + '</p>' +
+    '<table class="summary-table">' +
+    '<thead><tr><th>パターン</th><th>出現数</th><th>割合</th></tr></thead>' +
+    '<tbody>' + tableRows + '</tbody>' +
+    '</table>';
+}
+
+// ============================================================
+// Template Library
+// ============================================================
+
+/**
+ * 9. saveAsTemplate()
+ * Reads name from #templateName, saves current analysisResults
+ * to templateLibrary in localStorage key 'patternTemplates'.
+ */
+function saveAsTemplate() {
+  const nameInput = document.getElementById('templateName');
+  const name = nameInput ? nameInput.value.trim() : '';
+
+  if (!name) {
+    alert('テンプレート名を入力してください。');
+    return;
+  }
+
+  if (analysisResults.length === 0) {
+    alert('分析結果がありません。先に分析を実行してください。');
+    return;
+  }
+
+  // Calculate total audio duration from the last segment
+  const totalDuration =
+    analysisResults[analysisResults.length - 1].end;
+
+  const patterns = analysisResults.map((result) => ({
+    dialoguePattern: result.dialoguePattern,
+    csvPattern: result.csvPattern,
+    relativePosition: totalDuration > 0 ? result.start / totalDuration : 0,
+  }));
+
+  const template = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    name: name,
+    createdAt: new Date().toISOString(),
+    patterns: patterns,
+  };
+
+  templateLibrary.push(template);
+  localStorage.setItem('patternTemplates', JSON.stringify(templateLibrary));
+
+  if (nameInput) nameInput.value = '';
+  renderTemplateList();
+  console.log(`Template saved: ${name} (${patterns.length} patterns)`);
+}
+
+/**
+ * 10. renderTemplateList()
+ * Populates #templateList with saved templates.
+ */
+function renderTemplateList() {
+  const container = document.getElementById('templateList');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  // Also update the template select dropdown if present
+  const select = document.getElementById('templateSelect');
+  if (select) {
+    select.innerHTML = '<option value="">テンプレートを選択...</option>';
+    templateLibrary.forEach((tmpl) => {
+      const option = document.createElement('option');
+      option.value = tmpl.id;
+      option.textContent = tmpl.name;
+      select.appendChild(option);
+    });
+  }
+
+  if (templateLibrary.length === 0) {
+    container.innerHTML = '<p class="empty-message">保存されたテンプレートはありません。</p>';
+    return;
+  }
+
+  templateLibrary.forEach((tmpl) => {
+    const item = document.createElement('div');
+    item.className = 'template-item';
+
+    const dateStr = new Date(tmpl.createdAt).toLocaleDateString('ja-JP');
+
+    item.innerHTML =
+      '<div class="template-info">' +
+      '<span class="template-name">' + tmpl.name + '</span>' +
+      '<span class="template-meta">' +
+      dateStr + ' / ' + tmpl.patterns.length + 'パターン' +
+      '</span>' +
+      '</div>' +
+      '<div class="template-actions">' +
+      '<button class="btn-detail" onclick="showTemplateDetail(\'' +
+      tmpl.id +
+      '\')">詳細</button>' +
+      '<button class="btn-delete" onclick="deleteTemplate(\'' +
+      tmpl.id +
+      '\')">削除</button>' +
+      '</div>';
+
+    container.appendChild(item);
+  });
+}
+
+/**
+ * 11. deleteTemplate(id)
+ * Removes a template from the library by id, re-renders.
+ */
+function deleteTemplate(id) {
+  templateLibrary = templateLibrary.filter((t) => t.id !== id);
+  localStorage.setItem('patternTemplates', JSON.stringify(templateLibrary));
+  renderTemplateList();
+
+  // Clear detail view if the deleted template was shown
+  const detailContainer = document.getElementById('templateDetail');
+  if (detailContainer) {
+    detailContainer.innerHTML = '';
+  }
+}
+
+/**
+ * 12. exportTemplates()
+ * Downloads the templateLibrary as a JSON file.
+ */
+function exportTemplates() {
+  if (templateLibrary.length === 0) {
+    alert('エクスポートするテンプレートがありません。');
+    return;
+  }
+
+  const json = JSON.stringify(templateLibrary, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pattern_templates_' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 13. importTemplates()
+ * Opens a file input for JSON import, merges into library.
+ */
+function importTemplates() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+
+  input.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!Array.isArray(imported)) {
+          alert('無効なテンプレートファイルです。');
+          return;
+        }
+
+        // Merge: skip duplicates by id
+        const existingIds = new Set(templateLibrary.map((t) => t.id));
+        let addedCount = 0;
+        imported.forEach((tmpl) => {
+          if (tmpl.id && !existingIds.has(tmpl.id)) {
+            templateLibrary.push(tmpl);
+            existingIds.add(tmpl.id);
+            addedCount++;
+          }
+        });
+
+        localStorage.setItem(
+          'patternTemplates',
+          JSON.stringify(templateLibrary)
+        );
+        renderTemplateList();
+        console.log(`Imported ${addedCount} templates`);
+      } catch (err) {
+        alert('JSONの解析に失敗しました: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  input.click();
+}
+
+/**
+ * 14. showTemplateDetail(id)
+ * Shows pattern details of the selected template in #templateDetail.
+ */
+function showTemplateDetail(id) {
+  const container = document.getElementById('templateDetail');
+  if (!container) return;
+
+  const template = templateLibrary.find((t) => t.id === id);
+  if (!template) {
+    container.innerHTML = '<p>テンプレートが見つかりません。</p>';
+    return;
+  }
+
+  let patternsHtml = '';
+  template.patterns.forEach((p, i) => {
+    patternsHtml +=
+      '<div class="detail-pattern">' +
+      '<div class="detail-pattern-num">#' + (i + 1) + '</div>' +
+      '<div class="detail-pattern-info">' +
+      '<div>台詞: ' + p.dialoguePattern.label + '</div>' +
+      '<div>CSV: ' + p.csvPattern.label + '</div>' +
+      '<div>相対位置: ' + (p.relativePosition * 100).toFixed(1) + '%</div>' +
+      '</div>' +
+      '</div>';
+  });
+
+  const dateStr = new Date(template.createdAt).toLocaleDateString('ja-JP');
+
+  container.innerHTML =
+    '<h3>' + template.name + '</h3>' +
+    '<p class="detail-meta">作成日: ' + dateStr +
+    ' / パターン数: ' + template.patterns.length + '</p>' +
+    '<div class="detail-patterns">' + patternsHtml + '</div>';
+}
+
+// ============================================================
+// Template Application
+// ============================================================
+
+/**
+ * 15. applyTemplate()
+ * Applies the selected template to current audio segments.
+ */
+function applyTemplate() {
+  const select = document.getElementById('templateSelect');
+  if (!select || !select.value) {
+    alert('テンプレートを選択してください。');
+    return;
+  }
+
+  const template = templateLibrary.find((t) => t.id === select.value);
+  if (!template) {
+    alert('テンプレートが見つかりません。');
+    return;
+  }
+
+  if (typeof segments === 'undefined' || !segments || segments.length === 0) {
+    alert('音声セグメントが読み込まれていません。');
+    return;
+  }
+
+  // Calculate total duration of current audio
+  const totalDuration = segments[segments.length - 1].end;
+
+  // Match template patterns to current speech segments
+  // by relative position and dialogue pattern similarity
+  generatedCsvRows = [];
+
+  segments.forEach((seg) => {
+    const segRelativePos = totalDuration > 0 ? seg.start / totalDuration : 0;
+    const segDuration = seg.end - seg.start;
+    const segDialogue = classifyDialoguePattern(seg);
+
+    // Find best matching template pattern
+    let bestMatch = null;
+    let bestScore = Infinity;
+
+    template.patterns.forEach((tp) => {
+      // Score: weighted distance of relative position + dialogue similarity
+      const posDiff = Math.abs(tp.relativePosition - segRelativePos);
+
+      // Dialogue similarity: 0 if same label, 0.5 if same duration type, 1 otherwise
+      let dialogueSim = 1;
+      if (tp.dialoguePattern.label === segDialogue.label) {
+        dialogueSim = 0;
+      } else if (tp.dialoguePattern.durationType === segDialogue.durationType) {
+        dialogueSim = 0.3;
+      } else if (tp.dialoguePattern.intensityType === segDialogue.intensityType) {
+        dialogueSim = 0.5;
+      }
+
+      const score = posDiff * 0.6 + dialogueSim * 0.4;
+      if (score < bestScore) {
+        bestScore = score;
+        bestMatch = tp;
+      }
+    });
+
+    if (!bestMatch || !bestMatch.csvPattern || bestMatch.csvPattern.type === '無音') {
+      return;
+    }
+
+    // Generate CSV rows based on matched CSV pattern
+    const csvPattern = bestMatch.csvPattern;
+    const rowCount = csvPattern.rowCount || Math.max(1, Math.round(segDuration * 10));
+    const timeStep = segDuration / rowCount;
+
+    for (let i = 0; i < rowCount; i++) {
+      const time = seg.start + i * timeStep;
+      const timeDs = Math.round(time * 10); // Convert to deci-seconds
+
+      let speed = csvPattern.avgSpeed || 0;
+      let direction = 0;
+
+      // Generate speed based on pattern type
+      switch (csvPattern.type) {
+        case 'constant':
+          speed = csvPattern.avgSpeed || 0;
+          break;
+        case 'accel': {
+          const t = i / (rowCount - 1 || 1);
+          speed =
+            (csvPattern.startSpeed || 0) +
+            t * ((csvPattern.endSpeed || 0) - (csvPattern.startSpeed || 0));
+          break;
+        }
+        case 'decel': {
+          const t = i / (rowCount - 1 || 1);
+          speed =
+            (csvPattern.startSpeed || 0) +
+            t * ((csvPattern.endSpeed || 0) - (csvPattern.startSpeed || 0));
+          break;
+        }
+        case 'wave': {
+          const amplitude = (csvPattern.amplitude || 20) / 2;
+          const avg = csvPattern.avgSpeed || 30;
+          speed = avg + amplitude * Math.sin((i / rowCount) * Math.PI * 4);
+          break;
+        }
+        case 'pulse': {
+          speed = i % 2 === 0 ? csvPattern.maxSpeed || 50 : csvPattern.minSpeed || 10;
+          break;
+        }
+        case 'alternate': {
+          direction = i % 2;
+          speed = csvPattern.avgSpeed || 30;
+          break;
+        }
+        case 'climax': {
+          const peakPos = 0.7;
+          const t = i / (rowCount - 1 || 1);
+          if (t <= peakPos) {
+            speed = (csvPattern.minSpeed || 10) +
+              (t / peakPos) *
+                ((csvPattern.peakSpeed || csvPattern.maxSpeed || 80) -
+                  (csvPattern.minSpeed || 10));
+          } else {
+            speed =
+              (csvPattern.peakSpeed || csvPattern.maxSpeed || 80) *
+              (1 - (t - peakPos) / (1 - peakPos));
+          }
+          break;
+        }
+        case 'custom': {
+          // Reproduce original speeds stretched to fit
+          if (csvPattern.speeds && csvPattern.speeds.length > 0) {
+            const srcIdx = Math.floor(
+              (i / rowCount) * csvPattern.speeds.length
+            );
+            speed =
+              csvPattern.speeds[
+                Math.min(srcIdx, csvPattern.speeds.length - 1)
+              ];
+          }
+          break;
+        }
+        default:
+          speed = 0;
+      }
+
+      // Set direction from pattern
+      if (csvPattern.type !== 'alternate') {
+        if (csvPattern.directionPattern === 'all_1') {
+          direction = 1;
+        } else if (csvPattern.directionPattern === 'alternating') {
+          direction = i % 2;
+        } else {
+          direction = 0;
+        }
+      }
+
+      speed = Math.max(0, Math.round(speed));
+
+      generatedCsvRows.push({
+        time: timeDs,
+        direction: direction,
+        speed: speed,
+      });
+    }
+  });
+
+  // Sort by time
+  generatedCsvRows.sort((a, b) => a.time - b.time);
+
+  // Display in preview
+  renderGeneratedCsvPreview();
+  console.log(`Template applied: ${generatedCsvRows.length} CSV rows generated`);
+}
+
+/**
+ * Renders the generated CSV in #generatedCsvPreview.
+ */
+function renderGeneratedCsvPreview() {
+  const container = document.getElementById('generatedCsvPreview');
+  if (!container) return;
+
+  if (generatedCsvRows.length === 0) {
+    container.innerHTML = '<p>生成されたCSVデータはありません。</p>';
+    return;
+  }
+
+  let html =
+    '<table class="csv-preview-table">' +
+    '<thead><tr><th>Time (ds)</th><th>Direction</th><th>Speed</th></tr></thead>' +
+    '<tbody>';
+
+  const maxPreview = Math.min(generatedCsvRows.length, 100);
+  for (let i = 0; i < maxPreview; i++) {
+    const row = generatedCsvRows[i];
+    html +=
+      '<tr>' +
+      '<td>' + row.time + '</td>' +
+      '<td>' + row.direction + '</td>' +
+      '<td>' + row.speed + '</td>' +
+      '</tr>';
+  }
+
+  html += '</tbody></table>';
+
+  if (generatedCsvRows.length > 100) {
+    html +=
+      '<p class="preview-note">...他 ' +
+      (generatedCsvRows.length - 100) +
+      ' 行</p>';
+  }
+
+  container.innerHTML = html;
+}
+
+/**
+ * 16. downloadGeneratedCsv()
+ * Downloads the generated CSV as a file.
+ */
+function downloadGeneratedCsv() {
+  if (generatedCsvRows.length === 0) {
+    alert('ダウンロードするCSVデータがありません。');
+    return;
+  }
+
+  const lines = generatedCsvRows.map(
+    (row) => row.time + ',' + row.direction + ',' + row.speed
+  );
+  const csvText = lines.join('\n');
+  const blob = new Blob([csvText], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'generated_pattern_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 17. calculateCorrelation(arr)
+ * Calculates the Pearson correlation of values vs their indices.
+ * Returns a value between -1 and 1.
+ */
+function calculateCorrelation(arr) {
+  const n = arr.length;
+  if (n < 2) return 0;
+
+  // x = indices [0, 1, 2, ...], y = arr values
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumX2 = 0;
+  let sumY2 = 0;
+
+  for (let i = 0; i < n; i++) {
+    const x = i;
+    const y = arr[i];
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+    sumY2 += y * y;
+  }
+
+  const numerator = n * sumXY - sumX * sumY;
+  const denominator = Math.sqrt(
+    (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY)
+  );
+
+  if (denominator === 0) return 0;
+
+  return numerator / denominator;
+}
+
+// ====== Initialization ======
+document.addEventListener('DOMContentLoaded', function() {
+  initAudioDropZone();
+  initCsvDropZone();
+  renderTemplateList();
+  
+  // Detect button
+  document.getElementById('detectBtn').addEventListener('click', startSpeechDetection);
+  
+  // Analyze button
+  document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+  
+  // Template save
+  document.getElementById('saveTemplateBtn').addEventListener('click', saveAsTemplate);
+  
+  // Template export/import
+  document.getElementById('exportTemplatesBtn').addEventListener('click', exportTemplates);
+  document.getElementById('importTemplatesBtn').addEventListener('click', function() {
+    document.getElementById('importTemplatesInput').click();
+  });
+  document.getElementById('importTemplatesInput').addEventListener('change', function(e) {
+    importTemplates(e);
+  });
+  
+  // Template apply
+  document.getElementById('applyTemplateBtn').addEventListener('click', applyTemplate);
+  
+  // Download generated CSV
+  document.getElementById('downloadGeneratedBtn').addEventListener('click', downloadGeneratedCsv);
+  
+  // Update range display
+  const thresholdRange = document.getElementById('silenceThreshold');
+  if (thresholdRange) {
+    const display = document.getElementById('thresholdDisplay');
+    if (display) {
+      display.textContent = thresholdRange.value + ' dB';
+      thresholdRange.addEventListener('input', function() {
+        display.textContent = this.value + ' dB';
+      });
+    }
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,3515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UFOTW CSV Generator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  padding: 20px 16px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  color: #e94560;
+  text-align: center;
+}
+
+/* --- Format Toggle --- */
+.format-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.format-btn {
+  padding: 8px 20px;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  background: transparent;
+  color: #e94560;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.format-btn.active {
+  background: #e94560;
+  color: #fff;
+}
+
+.format-btn:hover {
+  background: #e94560;
+  color: #fff;
+  opacity: 0.85;
+}
+
+/* --- Table --- */
+.table-container {
+  max-width: 900px;
+  margin: 0 auto 16px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th {
+  background: #16213e;
+  color: #e94560;
+  padding: 8px 6px;
+  border: 1px solid #0f3460;
+  white-space: nowrap;
+}
+
+td {
+  padding: 4px;
+  border: 1px solid #0f3460;
+  text-align: center;
+}
+
+td input, td select {
+  width: 100%;
+  padding: 6px 4px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #16213e;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+td input:focus, td select:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+td input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+td input[type="number"]::-webkit-inner-spin-button,
+td input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+.row-num {
+  color: #666;
+  font-size: 0.8rem;
+  width: 30px;
+}
+
+.delete-btn {
+  background: transparent;
+  border: 1px solid #c0392b;
+  color: #c0392b;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  background: #c0392b;
+  color: #fff;
+}
+
+/* --- Buttons --- */
+.btn-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 8px 18px;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  background: transparent;
+  color: #e94560;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  background: #e94560;
+  color: #fff;
+}
+
+.btn-primary {
+  background: #e94560;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  opacity: 0.85;
+}
+
+.btn-success {
+  border-color: #27ae60;
+  color: #27ae60;
+}
+
+.btn-success:hover {
+  background: #27ae60;
+  color: #fff;
+}
+
+/* --- Preview --- */
+.preview-section {
+  max-width: 900px;
+  margin: 0 auto 16px;
+}
+
+.preview-section h2 {
+  font-size: 1.1rem;
+  color: #e94560;
+  margin-bottom: 8px;
+}
+
+.preview-box {
+  background: #0d0d1a;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.85rem;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre;
+  color: #a0d0a0;
+}
+
+/* --- Toast --- */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #27ae60;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: all 0.3s;
+  z-index: 1000;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* --- Info --- */
+.info-bar {
+  max-width: 900px;
+  margin: 0 auto 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #888;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* --- Import area --- */
+.import-area {
+  max-width: 900px;
+  margin: 0 auto 16px;
+  text-align: center;
+}
+
+.import-area label {
+  display: inline-block;
+  padding: 8px 18px;
+  border: 2px dashed #0f3460;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #888;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.import-area label:hover {
+  border-color: #e94560;
+  color: #e94560;
+}
+
+.import-area input[type="file"] {
+  display: none;
+}
+
+/* --- Time helper --- */
+.time-helper {
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+/* --- Preset Section --- */
+.preset-section {
+  max-width: 900px;
+  margin: 0 auto 20px;
+  background: #16213e;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.preset-section h2 {
+  font-size: 1.1rem;
+  color: #e94560;
+  margin-bottom: 12px;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.preset-card {
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.preset-card:hover {
+  border-color: #e94560;
+  transform: translateY(-2px);
+}
+
+.preset-card.selected {
+  border-color: #e94560;
+  background: #1a1a35;
+}
+
+.preset-card .preset-icon {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.preset-card .preset-name {
+  font-size: 0.85rem;
+  color: #e0e0e0;
+}
+
+.preset-card .preset-desc {
+  font-size: 0.7rem;
+  color: #888;
+  margin-top: 2px;
+}
+
+.preset-params {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.preset-param {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preset-param label {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.preset-param input, .preset-param select {
+  padding: 6px 8px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  width: 120px;
+}
+
+.preset-param input:focus, .preset-param select:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+/* --- Timeline Section --- */
+.timeline-section {
+  max-width: 900px;
+  margin: 0 auto 20px;
+}
+
+.timeline-section h2 {
+  font-size: 1.1rem;
+  color: #e94560;
+  margin-bottom: 8px;
+}
+
+.timeline-canvas-wrap {
+  background: #0d0d1a;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  overflow-x: auto;
+  position: relative;
+}
+
+canvas#timelineCanvas {
+  display: block;
+}
+
+/* --- Audio Section --- */
+.audio-section {
+  max-width: 900px;
+  margin: 0 auto 20px;
+  background: #16213e;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.audio-section h2 {
+  font-size: 1.1rem;
+  color: #e94560;
+  margin-bottom: 12px;
+}
+
+.audio-drop-zone {
+  border: 2px dashed #0f3460;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: #888;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+}
+
+.audio-drop-zone:hover,
+.audio-drop-zone.drag-over {
+  border-color: #e94560;
+  color: #e94560;
+}
+
+.audio-drop-zone input[type="file"] {
+  display: none;
+}
+
+.audio-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.audio-controls button {
+  padding: 6px 14px;
+  border: 1px solid #e94560;
+  border-radius: 6px;
+  background: transparent;
+  color: #e94560;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.audio-controls button:hover {
+  background: #e94560;
+  color: #fff;
+}
+
+.audio-controls .time-display {
+  font-family: 'Consolas', monospace;
+  font-size: 0.9rem;
+  color: #a0d0a0;
+}
+
+.audio-controls .pin-now-btn {
+  border-color: #f39c12;
+  color: #f39c12;
+}
+
+.audio-controls .pin-now-btn:hover {
+  background: #f39c12;
+  color: #fff;
+}
+
+/* --- Speed Controls --- */
+.speed-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.speed-controls .speed-label {
+  font-size: 0.75rem;
+  color: #888;
+  margin-right: 2px;
+}
+
+.speed-controls button {
+  padding: 4px 10px;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  background: transparent;
+  color: #3498db;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.speed-controls button:hover {
+  background: #3498db;
+  color: #fff;
+}
+
+.speed-controls button.active {
+  background: #3498db;
+  color: #fff;
+}
+
+.waveform-wrap {
+  background: #0d0d1a;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  cursor: crosshair;
+}
+
+canvas#waveformCanvas {
+  display: block;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e94560;
+  pointer-events: none;
+  left: 0;
+  display: none;
+}
+
+/* --- Waveform Zoom Controls --- */
+.waveform-zoom-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.waveform-zoom-controls button {
+  padding: 4px 10px;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  background: transparent;
+  color: #3498db;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  min-width: 32px;
+}
+
+.waveform-zoom-controls button:hover {
+  background: #3498db;
+  color: #fff;
+}
+
+.waveform-zoom-controls button.active {
+  background: #3498db;
+  color: #fff;
+}
+
+.waveform-zoom-controls .zoom-label {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.waveform-zoom-controls .zoom-info {
+  font-size: 0.75rem;
+  color: #a0d0a0;
+  font-family: 'Consolas', monospace;
+}
+
+.waveform-zoom-controls .zoom-sep {
+  width: 1px;
+  height: 16px;
+  background: #0f3460;
+  margin: 0 4px;
+}
+
+.waveform-zoom-controls .step-btn {
+  border-color: #f39c12;
+  color: #f39c12;
+}
+
+.waveform-zoom-controls .step-btn:hover {
+  background: #f39c12;
+  color: #fff;
+}
+
+/* --- Save/Load Section --- */
+.save-section {
+  max-width: 900px;
+  margin: 0 auto 20px;
+  background: #16213e;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #0f3460;
+}
+
+.save-section h2 {
+  font-size: 1.1rem;
+  color: #9b59b6;
+  margin-bottom: 12px;
+}
+
+.save-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.save-input-row input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+}
+
+.save-input-row input[type="text"]:focus {
+  outline: none;
+  border-color: #9b59b6;
+}
+
+.save-input-row button {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  background: #9b59b6;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.save-input-row button:hover {
+  background: #8e44ad;
+}
+
+.save-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.save-slot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.save-slot:hover {
+  border-color: #9b59b6;
+}
+
+.save-slot-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.save-slot-name {
+  font-size: 0.85rem;
+  color: #e0e0e0;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save-slot-meta {
+  font-size: 0.7rem;
+  color: #888;
+  margin-top: 2px;
+}
+
+.save-slot button {
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.save-slot .btn-load {
+  border: 1px solid #27ae60;
+  background: transparent;
+  color: #27ae60;
+}
+
+.save-slot .btn-load:hover {
+  background: #27ae60;
+  color: #fff;
+}
+
+.save-slot .btn-overwrite {
+  border: 1px solid #f39c12;
+  background: transparent;
+  color: #f39c12;
+}
+
+.save-slot .btn-overwrite:hover {
+  background: #f39c12;
+  color: #fff;
+}
+
+.save-slot .btn-delete {
+  border: 1px solid #c0392b;
+  background: transparent;
+  color: #c0392b;
+}
+
+.save-slot .btn-delete:hover {
+  background: #c0392b;
+  color: #fff;
+}
+
+.save-empty {
+  text-align: center;
+  color: #666;
+  font-size: 0.85rem;
+  padding: 16px;
+}
+
+/* --- Pin System --- */
+.pin-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.pin-controls button {
+  padding: 6px 14px;
+  border: 1px solid #f39c12;
+  border-radius: 6px;
+  background: transparent;
+  color: #f39c12;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.pin-controls button:hover {
+  background: #f39c12;
+  color: #fff;
+}
+
+.pin-controls button.active {
+  background: #f39c12;
+  color: #fff;
+}
+
+.pin-controls .pin-info {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.pin-list {
+  margin-top: 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pin-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: #2a1a00;
+  border: 1px solid #f39c12;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: #f39c12;
+}
+
+.pin-tag .pin-remove {
+  cursor: pointer;
+  color: #c0392b;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+.pin-tag .pin-remove:hover {
+  color: #e74c3c;
+}
+
+/* --- Pin Section Pattern UI --- */
+.pin-section-gen {
+  max-width: 900px;
+  margin: 0 auto 20px;
+  background: #16213e;
+  border-radius: 10px;
+  padding: 16px;
+  display: none;
+}
+
+.pin-section-gen h2 {
+  font-size: 1.1rem;
+  color: #f39c12;
+  margin-bottom: 12px;
+}
+
+.pin-section-list {
+  margin-bottom: 14px;
+}
+
+.pin-section-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.pin-section-item .section-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.pin-section-item .section-label {
+  font-size: 0.85rem;
+  color: #f39c12;
+  min-width: 140px;
+}
+
+.pin-section-item .section-dur {
+  font-size: 0.8rem;
+  color: #888;
+  min-width: 80px;
+}
+
+.pin-section-item .section-link-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.link-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #0d0d1a;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #888;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.link-toggle.linked {
+  border-color: #f39c12;
+  color: #f39c12;
+  background: #2a1a00;
+}
+
+.section-lr-panels {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.lr-panel {
+  flex: 1;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  padding: 8px;
+  background: #0d0d1a;
+}
+
+.lr-panel.panel-left {
+  border-color: #e94560;
+}
+
+.lr-panel.panel-right {
+  border-color: #3498db;
+}
+
+.lr-panel .lr-panel-title {
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lr-panel.panel-left .lr-panel-title { color: #e94560; }
+.lr-panel.panel-right .lr-panel-title { color: #3498db; }
+
+.lr-panel .cb-row {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.lr-panel .cb-row:last-child { margin-bottom: 0; }
+
+.lr-panel .cb-row-label {
+  font-size: 0.7rem;
+  color: #666;
+  min-width: 48px;
+}
+
+.cb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.cb-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #f39c12;
+  cursor: pointer;
+}
+
+.cb-item label {
+  font-size: 0.78rem;
+  color: #ccc;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pin-section-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pin-section-actions button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.btn-pin-gen {
+  background: #f39c12;
+  color: #fff;
+}
+
+.btn-pin-gen:hover {
+  background: #e67e22;
+}
+
+.btn-pin-append {
+  background: transparent;
+  border: 1px solid #f39c12 !important;
+  color: #f39c12;
+}
+
+.btn-pin-append:hover {
+  background: #f39c12;
+  color: #fff;
+}
+
+/* --- Auto Generate Section --- */
+.auto-gen-section {
+  max-width: 900px;
+  margin: 0 auto 20px;
+  background: #16213e;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #0f3460;
+}
+
+.auto-gen-section h2 {
+  font-size: 1.1rem;
+  color: #e94560;
+  margin-bottom: 12px;
+}
+
+.auto-gen-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.auto-gen-tab {
+  padding: 6px 16px;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.auto-gen-tab.active {
+  background: #e94560;
+  color: #fff;
+  border-color: #e94560;
+}
+
+.auto-gen-tab:hover {
+  border-color: #e94560;
+  color: #e94560;
+}
+
+.auto-gen-tab.active:hover {
+  color: #fff;
+}
+
+.auto-gen-panel {
+  display: none;
+}
+
+.auto-gen-panel.active {
+  display: block;
+}
+
+.auto-gen-params {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.auto-gen-params .preset-param {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auto-gen-params .preset-param label {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.auto-gen-params .preset-param input,
+.auto-gen-params .preset-param select {
+  padding: 6px 8px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  width: 120px;
+}
+
+.auto-gen-params .preset-param input:focus,
+.auto-gen-params .preset-param select:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+.script-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 10px;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  font-family: 'Consolas', 'Meiryo', monospace;
+  resize: vertical;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.script-textarea:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+.script-textarea::placeholder {
+  color: #555;
+}
+
+.auto-gen-info {
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #0d0d1a;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.auto-gen-info strong {
+  color: #e94560;
+}
+
+.auto-gen-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.auto-gen-actions button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.btn-auto-gen {
+  background: #e94560;
+  color: #fff;
+}
+
+.btn-auto-gen:hover {
+  background: #c0392b;
+}
+
+.btn-auto-gen:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+.btn-auto-append {
+  background: transparent;
+  border: 1px solid #e94560 !important;
+  color: #e94560;
+}
+
+.btn-auto-append:hover {
+  background: #e94560;
+  color: #fff;
+}
+
+.analysis-preview {
+  margin-top: 12px;
+  padding: 10px;
+  background: #0d0d1a;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #aaa;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+}
+
+.analysis-preview .seg {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  border-bottom: 1px solid #1a1a2e;
+}
+
+.analysis-preview .seg-time { color: #3498db; min-width: 60px; }
+.analysis-preview .seg-type { min-width: 60px; }
+.analysis-preview .seg-speech { color: #2ecc71; }
+.analysis-preview .seg-silence { color: #666; }
+.analysis-preview .seg-speed { color: #e94560; }
+.analysis-preview .seg-script { color: #f39c12; }
+</style>
+</head>
+<body>
+
+<h1>UFOTW CSV Generator</h1>
+
+<!-- Format Toggle -->
+<div class="format-toggle">
+  <button class="format-btn active" onclick="setFormat(3)" id="btn3col">3列（基本）</button>
+  <button class="format-btn" onclick="setFormat(5)" id="btn5col">5列（左右独立）</button>
+</div>
+
+<!-- Audio Section -->
+<div class="audio-section" id="audioSection">
+  <h2>音声ファイル同期</h2>
+  <div class="audio-drop-zone" id="audioDropZone" onclick="document.getElementById('audioFileInput').click()">
+    音声ファイルをドラッグ＆ドロップ、またはクリックして選択
+    <input type="file" id="audioFileInput" accept="audio/*" onchange="loadAudioFile(event)">
+  </div>
+  <div class="audio-controls" id="audioControls" style="display:none;">
+    <button onclick="togglePlayback()" id="playBtn">▶ 再生</button>
+    <button onclick="stopPlayback()">■ 停止</button>
+    <button class="pin-now-btn" onclick="pinAtCurrentPosition()" title="再生中の現在位置にピンを打つ">📌 ピンを打つ</button>
+    <span class="time-display" id="audioTime">00:00.0 / 00:00.0</span>
+    <div class="speed-controls">
+      <span class="speed-label">速度:</span>
+      <button class="active" onclick="setPlaybackSpeed(1, this)">1x</button>
+      <button onclick="setPlaybackSpeed(1.5, this)">1.5x</button>
+      <button onclick="setPlaybackSpeed(2, this)">2x</button>
+      <button onclick="setPlaybackSpeed(2.5, this)">2.5x</button>
+    </div>
+    <span style="font-size:0.8rem;color:#888;" id="audioFileName"></span>
+  </div>
+  <div class="waveform-wrap" id="waveformWrap" style="display:none;">
+    <canvas id="waveformCanvas" width="860" height="120"></canvas>
+    <div class="playhead" id="playhead"></div>
+  </div>
+  <div class="waveform-zoom-controls" id="zoomControls" style="display:none;">
+    <span class="zoom-label">ズーム:</span>
+    <button onclick="setWaveformZoom(1)" class="active" id="zoom1x">1x</button>
+    <button onclick="setWaveformZoom(2)" id="zoom2x">2x</button>
+    <button onclick="setWaveformZoom(4)" id="zoom4x">4x</button>
+    <button onclick="setWaveformZoom(8)" id="zoom8x">8x</button>
+    <button onclick="setWaveformZoom(16)" id="zoom16x">16x</button>
+    <div class="zoom-sep"></div>
+    <span class="zoom-label">移動:</span>
+    <button class="step-btn" onclick="stepWaveformView(-1)">◀◀ 1秒</button>
+    <button class="step-btn" onclick="stepWaveformView(-0.1)">◀ 0.1秒</button>
+    <button class="step-btn" onclick="stepWaveformView(0.1)">0.1秒 ▶</button>
+    <button class="step-btn" onclick="stepWaveformView(1)">1秒 ▶▶</button>
+    <div class="zoom-sep"></div>
+    <span class="zoom-info" id="zoomInfo"></span>
+  </div>
+  <div class="pin-controls" id="pinControls" style="display:none;">
+    <button id="pinModeBtn" onclick="togglePinMode()">📌 ピンモード</button>
+    <button onclick="clearAllPins()">🗑 ピン全削除</button>
+    <span class="pin-info" id="pinInfo">クリックで波形上にピンを配置</span>
+  </div>
+  <div class="pin-list" id="pinList" style="display:none;"></div>
+</div>
+
+<!-- Pin Section Pattern Generator -->
+<div class="pin-section-gen" id="pinSectionGen">
+  <h2>📌 ピン区間パターン生成</h2>
+  <div class="pin-section-list" id="pinSectionList"></div>
+  <div class="pin-section-actions">
+    <button class="btn-pin-gen" onclick="generateFromPinSections(false)">ピン区間から生成</button>
+    <button class="btn-pin-append" onclick="generateFromPinSections(true)">末尾に追加</button>
+  </div>
+</div>
+
+<!-- Auto Generate Section -->
+<div class="auto-gen-section" id="autoGenSection">
+  <h2>自動CSV生成</h2>
+  <div class="auto-gen-tabs">
+    <button class="auto-gen-tab active" onclick="switchAutoTab('audio')">音声解析</button>
+    <button class="auto-gen-tab" onclick="switchAutoTab('script')">台本連動</button>
+    <button class="auto-gen-tab" onclick="switchAutoTab('hybrid')">ハイブリッド</button>
+  </div>
+
+  <!-- Audio Analysis Panel -->
+  <div class="auto-gen-panel active" id="panelAudio">
+    <div class="auto-gen-info">
+      <strong>音声解析モード:</strong> 読み込んだ音声ファイルの音量（RMS）を解析し、セリフ区間・無音区間を自動検出してCSVを生成します。<br>
+      ※ 先に上の「音声ファイル同期」で音声を読み込んでください。
+    </div>
+    <div class="auto-gen-params">
+      <div class="preset-param">
+        <label>解析間隔（秒）</label>
+        <input type="number" id="agAudioInterval" value="0.5" min="0.1" max="5" step="0.1">
+      </div>
+      <div class="preset-param">
+        <label>無音しきい値</label>
+        <input type="number" id="agSilenceThresh" value="0.05" min="0.01" max="0.5" step="0.01">
+      </div>
+      <div class="preset-param">
+        <label>最小速度</label>
+        <input type="number" id="agAudioMinSpeed" value="0" min="0" max="100">
+      </div>
+      <div class="preset-param">
+        <label>最大速度</label>
+        <input type="number" id="agAudioMaxSpeed" value="80" min="0" max="100">
+      </div>
+      <div class="preset-param">
+        <label>無音時の速度</label>
+        <input type="number" id="agSilenceSpeed" value="0" min="0" max="100">
+      </div>
+    </div>
+    <div class="auto-gen-actions">
+      <button class="btn-auto-gen" onclick="autoGenFromAudio(false)">音声から自動生成</button>
+      <button class="btn-auto-append" onclick="autoGenFromAudio(true)">末尾に追加</button>
+      <button class="btn-auto-append" onclick="previewAudioAnalysis()">解析プレビュー</button>
+    </div>
+    <div class="analysis-preview" id="audioAnalysisPreview"></div>
+  </div>
+
+  <!-- Script Panel -->
+  <div class="auto-gen-panel" id="panelScript">
+    <div class="auto-gen-info">
+      <strong>台本連動モード:</strong> 台本テキストを貼り付けると、演技指示やSE指示からパターンを自動生成します。<br>
+      ※ 240文字＝1分のベースラインでタイミングを計算します。
+    </div>
+    <textarea class="script-textarea" id="scriptText" placeholder="台本テキストをここに貼り付けてください。&#10;&#10;例：&#10;（演技指示: ゆっくり、焦らすように）&#10;ふふ……気持ちいい？&#10;（SE: くちゅくちゅ）&#10;（演技指示: テンポを上げる）&#10;もっと……もっと気持ちよくしてあげる……"></textarea>
+    <div class="auto-gen-params">
+      <div class="preset-param">
+        <label>基準速度</label>
+        <input type="number" id="agScriptBaseSpeed" value="40" min="0" max="100">
+      </div>
+      <div class="preset-param">
+        <label>生成間隔（秒）</label>
+        <input type="number" id="agScriptInterval" value="0.5" min="0.1" max="5" step="0.1">
+      </div>
+    </div>
+    <div class="auto-gen-actions">
+      <button class="btn-auto-gen" onclick="autoGenFromScript(false)">台本から自動生成</button>
+      <button class="btn-auto-append" onclick="autoGenFromScript(true)">末尾に追加</button>
+    </div>
+    <div class="analysis-preview" id="scriptAnalysisPreview"></div>
+  </div>
+
+  <!-- Hybrid Panel -->
+  <div class="auto-gen-panel" id="panelHybrid">
+    <div class="auto-gen-info">
+      <strong>ハイブリッドモード:</strong> 音声解析で基本タイムラインを生成し、台本データで速度・パターンを補正します。<br>
+      ※ 音声ファイルと台本テキストの両方が必要です。
+    </div>
+    <textarea class="script-textarea" id="hybridScriptText" placeholder="台本テキストをここに貼り付け&#10;（音声ファイルは上の「音声ファイル同期」で読み込み済みのものを使用）"></textarea>
+    <div class="auto-gen-params">
+      <div class="preset-param">
+        <label>解析間隔（秒）</label>
+        <input type="number" id="agHybridInterval" value="0.5" min="0.1" max="5" step="0.1">
+      </div>
+      <div class="preset-param">
+        <label>無音しきい値</label>
+        <input type="number" id="agHybridThresh" value="0.05" min="0.01" max="0.5" step="0.01">
+      </div>
+      <div class="preset-param">
+        <label>最小速度</label>
+        <input type="number" id="agHybridMinSpeed" value="0" min="0" max="100">
+      </div>
+      <div class="preset-param">
+        <label>最大速度</label>
+        <input type="number" id="agHybridMaxSpeed" value="80" min="0" max="100">
+      </div>
+      <div class="preset-param">
+        <label>台本補正の強さ</label>
+        <select id="agHybridWeight">
+          <option value="0.3">弱（30%）</option>
+          <option value="0.5" selected>中（50%）</option>
+          <option value="0.7">強（70%）</option>
+        </select>
+      </div>
+    </div>
+    <div class="auto-gen-actions">
+      <button class="btn-auto-gen" onclick="autoGenHybrid(false)">ハイブリッド自動生成</button>
+      <button class="btn-auto-append" onclick="autoGenHybrid(true)">末尾に追加</button>
+    </div>
+    <div class="analysis-preview" id="hybridAnalysisPreview"></div>
+  </div>
+</div>
+
+<!-- Preset Section -->
+<div class="preset-section">
+  <h2>パターンプリセット</h2>
+  <div class="preset-grid" id="presetGrid"></div>
+  <div class="preset-params" id="presetParams">
+    <div class="preset-param">
+      <label>開始時間（秒）</label>
+      <input type="number" id="presetStart" value="0" min="0" step="0.1">
+    </div>
+    <div class="preset-param">
+      <label>持続時間（秒）</label>
+      <input type="number" id="presetDuration" value="10" min="0.1" step="0.1">
+    </div>
+    <div class="preset-param">
+      <label>間隔（秒）</label>
+      <input type="number" id="presetInterval" value="0.5" min="0.1" step="0.1">
+    </div>
+    <div class="preset-param">
+      <label>最小速度</label>
+      <input type="number" id="presetMinSpeed" value="0" min="0" max="100">
+    </div>
+    <div class="preset-param">
+      <label>最大速度</label>
+      <input type="number" id="presetMaxSpeed" value="80" min="0" max="100">
+    </div>
+    <button class="btn btn-primary" onclick="applyPreset()">プリセット適用</button>
+    <button class="btn" onclick="appendPreset()">末尾に追加</button>
+  </div>
+</div>
+
+<!-- Timeline Visualization -->
+<div class="timeline-section">
+  <h2>タイムライン</h2>
+  <div class="timeline-canvas-wrap">
+    <canvas id="timelineCanvas" width="860" height="150"></canvas>
+  </div>
+</div>
+
+<!-- Info Bar -->
+<div class="info-bar">
+  <span id="rowCount">行数: 1</span>
+  <span id="totalTime">合計時間: 0.0秒</span>
+</div>
+
+<!-- Button Row -->
+<div class="btn-row">
+  <button class="btn" onclick="addRow()">+ 行を追加</button>
+  <button class="btn" onclick="addMultipleRows()">+ 10行追加</button>
+  <button class="btn" onclick="sortByTime()">時間順ソート</button>
+  <button class="btn" onclick="clearAll()">全消去</button>
+</div>
+
+<!-- Table -->
+<div class="table-container">
+  <table id="csvTable">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<!-- Import -->
+<div class="import-area">
+  <label>CSVファイルを読み込む<input type="file" accept=".csv,.txt" onchange="importCSV(event)"></label>
+</div>
+
+<!-- Preview -->
+<div class="preview-section">
+  <h2>CSVプレビュー</h2>
+  <div class="preview-box" id="csvPreview">（データを入力してください）</div>
+</div>
+
+<!-- Save/Load Section -->
+<div class="save-section">
+  <h2>💾 作業の一時保存</h2>
+  <div class="save-input-row">
+    <input type="text" id="saveSlotName" placeholder="保存名を入力（例: パート1作業中）">
+    <button onclick="saveCurrentWork()">💾 保存</button>
+  </div>
+  <div class="save-slot-list" id="saveSlotList">
+    <div class="save-empty">保存データはありません</div>
+  </div>
+</div>
+
+<!-- Export Buttons -->
+<div class="btn-row">
+  <button class="btn btn-primary" onclick="downloadCSV()">CSVダウンロード</button>
+  <button class="btn btn-success" onclick="copyCSV()">クリップボードにコピー</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+let currentFormat = 3; // 3 or 5
+let rows = [];
+let rowIdCounter = 0;
+
+function setFormat(f) {
+  currentFormat = f;
+  document.getElementById('btn3col').classList.toggle('active', f === 3);
+  document.getElementById('btn5col').classList.toggle('active', f === 5);
+  renderTable();
+}
+
+function createRow(data) {
+  rowIdCounter++;
+  if (currentFormat === 3) {
+    return {
+      id: rowIdCounter,
+      time: data ? data.time : '',
+      direction: data ? data.direction : 0,
+      speed: data ? data.speed : ''
+    };
+  } else {
+    return {
+      id: rowIdCounter,
+      time: data ? data.time : '',
+      leftDir: data ? (data.leftDir !== undefined ? data.leftDir : data.direction) : 0,
+      leftSpeed: data ? (data.leftSpeed !== undefined ? data.leftSpeed : data.speed) : '',
+      rightDir: data ? (data.rightDir !== undefined ? data.rightDir : 0) : 0,
+      rightSpeed: data ? (data.rightSpeed !== undefined ? data.rightSpeed : '') : ''
+    };
+  }
+}
+
+function addRow(data) {
+  rows.push(createRow(data));
+  renderTable();
+  updateInfo();
+}
+
+function addMultipleRows() {
+  for (let i = 0; i < 10; i++) {
+    rows.push(createRow());
+  }
+  renderTable();
+  updateInfo();
+}
+
+function deleteRow(idx) {
+  rows.splice(idx, 1);
+  renderTable();
+  updateInfo();
+}
+
+function sortByTime() {
+  rows.sort((a, b) => {
+    const ta = parseFloat(a.time) || 0;
+    const tb = parseFloat(b.time) || 0;
+    return ta - tb;
+  });
+  renderTable();
+  showToast('時間順にソートしました');
+}
+
+function clearAll() {
+  if (rows.length === 0) return;
+  if (!confirm('全データを消去しますか？')) return;
+  rows = [];
+  addRow();
+  showToast('全データを消去しました');
+}
+
+function renderTable() {
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+
+  if (currentFormat === 3) {
+    head.innerHTML = `<tr>
+      <th class="row-num">#</th>
+      <th>時間（デシ秒）</th>
+      <th>回転方向</th>
+      <th>回転速度（0-100）</th>
+      <th></th>
+    </tr>`;
+  } else {
+    head.innerHTML = `<tr>
+      <th class="row-num">#</th>
+      <th>時間（デシ秒）</th>
+      <th>左 方向</th>
+      <th>左 速度（0-100）</th>
+      <th>右 方向</th>
+      <th>右 速度（0-100）</th>
+      <th></th>
+    </tr>`;
+  }
+
+  body.innerHTML = '';
+  rows.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+
+    if (currentFormat === 3) {
+      const timeSec = row.time !== '' ? (parseFloat(row.time) / 10).toFixed(1) : '-';
+      tr.innerHTML = `
+        <td class="row-num">${idx + 1}</td>
+        <td>
+          <input type="number" min="0" value="${row.time}" placeholder="例: 10" onchange="updateRow(${idx},'time',this.value)" oninput="updateRow(${idx},'time',this.value)">
+          <div class="time-helper">${timeSec}秒</div>
+        </td>
+        <td>
+          <select onchange="updateRow(${idx},'direction',this.value)">
+            <option value="0" ${row.direction == 0 ? 'selected' : ''}>0（正転）</option>
+            <option value="1" ${row.direction == 1 ? 'selected' : ''}>1（逆転）</option>
+          </select>
+        </td>
+        <td>
+          <input type="number" min="0" max="100" value="${row.speed}" placeholder="0-100" onchange="updateRow(${idx},'speed',this.value)" oninput="updateRow(${idx},'speed',this.value)">
+        </td>
+        <td><button class="delete-btn" onclick="deleteRow(${idx})">×</button></td>
+      `;
+    } else {
+      const timeSec = row.time !== '' ? (parseFloat(row.time) / 10).toFixed(1) : '-';
+      tr.innerHTML = `
+        <td class="row-num">${idx + 1}</td>
+        <td>
+          <input type="number" min="0" value="${row.time}" placeholder="例: 10" onchange="updateRow(${idx},'time',this.value)" oninput="updateRow(${idx},'time',this.value)">
+          <div class="time-helper">${timeSec}秒</div>
+        </td>
+        <td>
+          <select onchange="updateRow(${idx},'leftDir',this.value)">
+            <option value="0" ${row.leftDir == 0 ? 'selected' : ''}>0（正転）</option>
+            <option value="1" ${row.leftDir == 1 ? 'selected' : ''}>1（逆転）</option>
+          </select>
+        </td>
+        <td>
+          <input type="number" min="0" max="100" value="${row.leftSpeed}" placeholder="0-100" onchange="updateRow(${idx},'leftSpeed',this.value)" oninput="updateRow(${idx},'leftSpeed',this.value)">
+        </td>
+        <td>
+          <select onchange="updateRow(${idx},'rightDir',this.value)">
+            <option value="0" ${row.rightDir == 0 ? 'selected' : ''}>0（正転）</option>
+            <option value="1" ${row.rightDir == 1 ? 'selected' : ''}>1（逆転）</option>
+          </select>
+        </td>
+        <td>
+          <input type="number" min="0" max="100" value="${row.rightSpeed}" placeholder="0-100" onchange="updateRow(${idx},'rightSpeed',this.value)" oninput="updateRow(${idx},'rightSpeed',this.value)">
+        </td>
+        <td><button class="delete-btn" onclick="deleteRow(${idx})">×</button></td>
+      `;
+    }
+    body.appendChild(tr);
+  });
+
+  updatePreview();
+}
+
+function updateRow(idx, field, value) {
+  if (field === 'time' || field === 'speed' || field === 'leftSpeed' || field === 'rightSpeed') {
+    rows[idx][field] = value;
+  } else {
+    rows[idx][field] = parseInt(value);
+  }
+  // Update time helper
+  if (field === 'time') {
+    const tr = document.getElementById('tableBody').children[idx];
+    const helper = tr.querySelector('.time-helper');
+    if (helper) {
+      const v = parseFloat(value);
+      helper.textContent = !isNaN(v) ? (v / 10).toFixed(1) + '秒' : '-';
+    }
+  }
+  updatePreview();
+  updateInfo();
+}
+
+function generateCSV() {
+  const lines = [];
+  rows.forEach(row => {
+    if (row.time === '' && (currentFormat === 3 ? row.speed === '' : (row.leftSpeed === '' && row.rightSpeed === ''))) return;
+    const t = row.time !== '' ? parseInt(row.time) : 0;
+    if (currentFormat === 3) {
+      const s = row.speed !== '' ? Math.min(100, Math.max(0, parseInt(row.speed))) : 0;
+      lines.push(`${t},${row.direction},${s}`);
+    } else {
+      const ls = row.leftSpeed !== '' ? Math.min(100, Math.max(0, parseInt(row.leftSpeed))) : 0;
+      const rs = row.rightSpeed !== '' ? Math.min(100, Math.max(0, parseInt(row.rightSpeed))) : 0;
+      lines.push(`${t},${row.leftDir},${ls},${row.rightDir},${rs}`);
+    }
+  });
+  return lines.join('\n');
+}
+
+function updatePreview() {
+  const csv = generateCSV();
+  document.getElementById('csvPreview').textContent = csv || '（データを入力してください）';
+}
+
+function updateInfo() {
+  document.getElementById('rowCount').textContent = `行数: ${rows.length}`;
+  let maxTime = 0;
+  rows.forEach(r => {
+    const t = parseFloat(r.time) || 0;
+    if (t > maxTime) maxTime = t;
+  });
+  document.getElementById('totalTime').textContent = `合計時間: ${(maxTime / 10).toFixed(1)}秒`;
+}
+
+function downloadCSV() {
+  const csv = generateCSV();
+  if (!csv) { showToast('データがありません', true); return; }
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ufotw_pattern.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('CSVをダウンロードしました');
+}
+
+function copyCSV() {
+  const csv = generateCSV();
+  if (!csv) { showToast('データがありません', true); return; }
+  navigator.clipboard.writeText(csv).then(() => {
+    showToast('クリップボードにコピーしました');
+  }).catch(() => {
+    showToast('コピーに失敗しました', true);
+  });
+}
+
+function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result.trim();
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length === 0) { showToast('空のファイルです', true); return; }
+
+    // Detect format from first line
+    const firstCols = lines[0].split(',').length;
+    if (firstCols >= 5) {
+      setFormat(5);
+    } else {
+      setFormat(3);
+    }
+
+    rows = [];
+    lines.forEach(line => {
+      const cols = line.split(',').map(c => c.trim());
+      if (currentFormat === 3) {
+        rows.push(createRow({
+          time: cols[0] || '',
+          direction: parseInt(cols[1]) || 0,
+          speed: cols[2] || ''
+        }));
+      } else {
+        rows.push(createRow({
+          time: cols[0] || '',
+          leftDir: parseInt(cols[1]) || 0,
+          leftSpeed: cols[2] || '',
+          rightDir: parseInt(cols[3]) || 0,
+          rightSpeed: cols[4] || ''
+        }));
+      }
+    });
+
+    renderTable();
+    updateInfo();
+    showToast(`${rows.length}行を読み込みました`);
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#c0392b' : '#27ae60';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ====== Presets ======
+const presets = [
+  { id: 'constant', name: '一定速度', desc: '同じ速度で継続', icon: '➡️',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const s = maxS;
+      for (let t = start; t <= start + dur; t += interval) {
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: s });
+      }
+      return rows;
+    }
+  },
+  { id: 'constant_xweak', name: '一定速度（最微弱）', desc: '速度20で一定', icon: '➡️',
+    generate(start, dur, interval) {
+      const rows = [];
+      for (let t = start; t <= start + dur; t += interval) {
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: 20 });
+      }
+      return rows;
+    }
+  },
+  { id: 'constant_weak', name: '一定速度（弱）', desc: '速度40で一定', icon: '➡️',
+    generate(start, dur, interval) {
+      const rows = [];
+      for (let t = start; t <= start + dur; t += interval) {
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: 40 });
+      }
+      return rows;
+    }
+  },
+  { id: 'constant_mid', name: '一定速度（中）', desc: '速度60で一定', icon: '➡️',
+    generate(start, dur, interval) {
+      const rows = [];
+      for (let t = start; t <= start + dur; t += interval) {
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: 60 });
+      }
+      return rows;
+    }
+  },
+  { id: 'constant_strong', name: '一定速度（強）', desc: '速度80で一定', icon: '➡️',
+    generate(start, dur, interval) {
+      const rows = [];
+      for (let t = start; t <= start + dur; t += interval) {
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: 80 });
+      }
+      return rows;
+    }
+  },
+  { id: 'constant_xstrong', name: '一定速度（最強）', desc: '速度100で一定', icon: '➡️',
+    generate(start, dur, interval) {
+      const rows = [];
+      for (let t = start; t <= start + dur; t += interval) {
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: 100 });
+      }
+      return rows;
+    }
+  },
+  { id: 'accel', name: '加速', desc: '徐々に速くなる', icon: '📈',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        const s = Math.round(minS + (maxS - minS) * (i / steps));
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: s });
+      }
+      return rows;
+    }
+  },
+  { id: 'decel', name: '減速', desc: '徐々に遅くなる', icon: '📉',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        const s = Math.round(maxS - (maxS - minS) * (i / steps));
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: s });
+      }
+      return rows;
+    }
+  },
+  { id: 'wave', name: '波状', desc: '速度が波のように変化', icon: '🌊',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        const ratio = (Math.sin(i / steps * Math.PI * 4) + 1) / 2;
+        const s = Math.round(minS + (maxS - minS) * ratio);
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: s });
+      }
+      return rows;
+    }
+  },
+  { id: 'pulse', name: 'パルス', desc: 'ON/OFFを繰り返す', icon: '⚡',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        const s = (i % 2 === 0) ? maxS : minS;
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: s });
+      }
+      return rows;
+    }
+  },
+  { id: 'ramp', name: '階段状', desc: '段階的に速度アップ', icon: '🪜',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const numSteps = 5;
+      const stepDur = dur / numSteps;
+      for (let s = 0; s < numSteps; s++) {
+        const speed = Math.round(minS + (maxS - minS) * (s / (numSteps - 1)));
+        const tStart = start + s * stepDur;
+        for (let t = tStart; t < tStart + stepDur; t += interval) {
+          rows.push({ time: Math.round(t * 10), direction: 0, speed: speed });
+        }
+      }
+      return rows;
+    }
+  },
+  { id: 'alternate', name: '正逆交互', desc: '回転方向を交互に切替', icon: '🔄',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        rows.push({ time: Math.round(t * 10), direction: i % 2, speed: maxS });
+      }
+      return rows;
+    }
+  },
+  { id: 'alternate_xweak', name: '正逆交互（最微弱）', desc: '速度20で正逆交互', icon: '🔄',
+    generate(start, dur, interval) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        rows.push({ time: Math.round(t * 10), direction: i % 2, speed: 20 });
+      }
+      return rows;
+    }
+  },
+  { id: 'alternate_weak', name: '正逆交互（弱）', desc: '速度40で正逆交互', icon: '🔄',
+    generate(start, dur, interval) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        rows.push({ time: Math.round(t * 10), direction: i % 2, speed: 40 });
+      }
+      return rows;
+    }
+  },
+  { id: 'alternate_mid', name: '正逆交互（中）', desc: '速度60で正逆交互', icon: '🔄',
+    generate(start, dur, interval) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        rows.push({ time: Math.round(t * 10), direction: i % 2, speed: 60 });
+      }
+      return rows;
+    }
+  },
+  { id: 'alternate_strong', name: '正逆交互（強）', desc: '速度80で正逆交互', icon: '🔄',
+    generate(start, dur, interval) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        rows.push({ time: Math.round(t * 10), direction: i % 2, speed: 80 });
+      }
+      return rows;
+    }
+  },
+  { id: 'alternate_xstrong', name: '正逆交互（最強）', desc: '速度100で正逆交互', icon: '🔄',
+    generate(start, dur, interval) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        rows.push({ time: Math.round(t * 10), direction: i % 2, speed: 100 });
+      }
+      return rows;
+    }
+  },
+  { id: 'random', name: 'ランダム', desc: '速度をランダムに変化', icon: '🎲',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        const s = Math.round(minS + Math.random() * (maxS - minS));
+        rows.push({ time: Math.round(t * 10), direction: Math.random() > 0.5 ? 1 : 0, speed: s });
+      }
+      return rows;
+    }
+  },
+  { id: 'climax', name: 'クライマックス', desc: '加速→最大→急停止', icon: '🔥',
+    generate(start, dur, interval, minS, maxS) {
+      const rows = [];
+      const steps = Math.floor(dur / interval);
+      for (let i = 0; i <= steps; i++) {
+        const t = start + i * interval;
+        const ratio = i / steps;
+        let s;
+        if (ratio < 0.7) {
+          s = Math.round(minS + (maxS - minS) * (ratio / 0.7));
+        } else if (ratio < 0.9) {
+          s = maxS;
+        } else {
+          s = Math.round(maxS * (1 - (ratio - 0.9) / 0.1));
+        }
+        rows.push({ time: Math.round(t * 10), direction: 0, speed: s });
+      }
+      return rows;
+    }
+  }
+];
+
+let selectedPreset = null;
+
+function renderPresets() {
+  const grid = document.getElementById('presetGrid');
+  grid.innerHTML = '';
+  presets.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'preset-card' + (selectedPreset === p.id ? ' selected' : '');
+    card.onclick = () => { selectedPreset = p.id; renderPresets(); };
+    card.innerHTML = `<div class="preset-icon">${p.icon}</div><div class="preset-name">${p.name}</div><div class="preset-desc">${p.desc}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+function getPresetParams() {
+  return {
+    start: parseFloat(document.getElementById('presetStart').value) || 0,
+    duration: parseFloat(document.getElementById('presetDuration').value) || 10,
+    interval: parseFloat(document.getElementById('presetInterval').value) || 0.5,
+    minSpeed: parseInt(document.getElementById('presetMinSpeed').value) || 0,
+    maxSpeed: parseInt(document.getElementById('presetMaxSpeed').value) || 80,
+  };
+}
+
+function generatePresetRows() {
+  if (!selectedPreset) { showToast('プリセットを選択してください', true); return null; }
+  const preset = presets.find(p => p.id === selectedPreset);
+  const params = getPresetParams();
+  return preset.generate(params.start, params.duration, params.interval, params.minSpeed, params.maxSpeed);
+}
+
+function applyPreset() {
+  const generated = generatePresetRows();
+  if (!generated) return;
+  rows = [];
+  generated.forEach(r => rows.push(createRow(r)));
+  renderTable();
+  updateInfo();
+  drawTimeline();
+  showToast(`${generated.length}行を生成しました`);
+}
+
+function appendPreset() {
+  const generated = generatePresetRows();
+  if (!generated) return;
+  generated.forEach(r => rows.push(createRow(r)));
+  renderTable();
+  updateInfo();
+  drawTimeline();
+  showToast(`${generated.length}行を末尾に追加しました`);
+}
+
+// ====== Timeline ======
+function drawTimeline() {
+  const canvas = document.getElementById('timelineCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (rows.length === 0) return;
+
+  // Find max time
+  let maxTime = 0;
+  rows.forEach(r => {
+    const t = parseFloat(r.time) || 0;
+    if (t > maxTime) maxTime = t;
+  });
+  if (maxTime === 0) maxTime = 100;
+
+  const padding = { left: 50, right: 20, top: 15, bottom: 30 };
+  const plotW = W - padding.left - padding.right;
+  const plotH = H - padding.top - padding.bottom;
+
+  // Grid lines
+  ctx.strokeStyle = '#1a2a4a';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding.top + plotH * (1 - i / 4);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(W - padding.right, y);
+    ctx.stroke();
+    ctx.fillStyle = '#666';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(i * 25), padding.left - 6, y + 3);
+  }
+
+  // Time labels
+  const numTimeLabels = 6;
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= numTimeLabels; i++) {
+    const tVal = (maxTime / numTimeLabels) * i;
+    const x = padding.left + (tVal / maxTime) * plotW;
+    ctx.fillStyle = '#666';
+    ctx.fillText((tVal / 10).toFixed(1) + 's', x, H - 8);
+  }
+
+  // Build sorted data
+  const sortedRows = [...rows].filter(r => r.time !== '').sort((a, b) => parseFloat(a.time) - parseFloat(b.time));
+  if (sortedRows.length === 0) return;
+
+  // Draw speed line
+  function drawLine(getSpeed, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    sortedRows.forEach((r, i) => {
+      const t = parseFloat(r.time) || 0;
+      const s = getSpeed(r);
+      const x = padding.left + (t / maxTime) * plotW;
+      const y = padding.top + plotH * (1 - s / 100);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Dots
+    ctx.fillStyle = color;
+    sortedRows.forEach(r => {
+      const t = parseFloat(r.time) || 0;
+      const s = getSpeed(r);
+      const x = padding.left + (t / maxTime) * plotW;
+      const y = padding.top + plotH * (1 - s / 100);
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  if (currentFormat === 3) {
+    drawLine(r => parseFloat(r.speed) || 0, '#e94560');
+  } else {
+    drawLine(r => parseFloat(r.leftSpeed) || 0, '#e94560');
+    drawLine(r => parseFloat(r.rightSpeed) || 0, '#3498db');
+    // Legend
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#e94560';
+    ctx.textAlign = 'left';
+    ctx.fillText('● 左', W - 80, 14);
+    ctx.fillStyle = '#3498db';
+    ctx.fillText('● 右', W - 40, 14);
+  }
+
+  // Direction indicators (small triangles at bottom)
+  ctx.font = '8px sans-serif';
+  sortedRows.forEach(r => {
+    const t = parseFloat(r.time) || 0;
+    const x = padding.left + (t / maxTime) * plotW;
+    const dir = currentFormat === 3 ? r.direction : r.leftDir;
+    ctx.fillStyle = dir == 1 ? '#f39c12' : '#2ecc71';
+    ctx.fillText(dir == 1 ? '◄' : '►', x - 3, padding.top + plotH + 14);
+  });
+}
+
+// Override updatePreview to also draw timeline
+const _origUpdatePreview = updatePreview;
+updatePreview = function() {
+  _origUpdatePreview();
+  drawTimeline();
+};
+
+// ====== Audio Waveform ======
+let audioContext = null;
+let audioBuffer = null;
+let audioSource = null;
+let isPlaying = false;
+let playStartTime = 0;
+let playOffset = 0;
+let waveformData = null;
+let animFrameId = null;
+let playbackRate = 1;
+
+function loadAudioFile(event) {
+  const file = event.target.files ? event.target.files[0] : null;
+  if (!file) return;
+
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  document.getElementById('audioFileName').textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    audioContext.decodeAudioData(e.target.result, function(buffer) {
+      audioBuffer = buffer;
+      waveformData = extractWaveform(buffer, 860);
+      document.getElementById('audioControls').style.display = 'flex';
+      document.getElementById('waveformWrap').style.display = 'block';
+      drawWaveform();
+      updateAudioTime();
+      showToast('音声ファイルを読み込みました');
+    }, function() {
+      showToast('音声ファイルのデコードに失敗しました', true);
+    });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Drag & drop
+const dropZone = document.getElementById('audioDropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) {
+    const input = document.getElementById('audioFileInput');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    loadAudioFile({ target: input });
+  }
+});
+
+function extractWaveform(buffer, samples) {
+  const channel = buffer.getChannelData(0);
+  const blockSize = Math.floor(channel.length / samples);
+  const data = [];
+  for (let i = 0; i < samples; i++) {
+    let sum = 0;
+    const start = i * blockSize;
+    for (let j = 0; j < blockSize; j++) {
+      sum += Math.abs(channel[start + j]);
+    }
+    data.push(sum / blockSize);
+  }
+  // Normalize
+  const max = Math.max(...data) || 1;
+  return data.map(v => v / max);
+}
+
+function drawWaveform(currentTime) {
+  const canvas = document.getElementById('waveformCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!waveformData) return;
+
+  const midY = H / 2;
+
+  // Draw waveform
+  for (let i = 0; i < waveformData.length; i++) {
+    const val = waveformData[i];
+    const barH = val * midY * 0.9;
+    ctx.fillStyle = '#0f3460';
+    ctx.fillRect(i, midY - barH, 1, barH * 2);
+  }
+
+  // Overlay speed data on waveform
+  if (rows.length > 1 && audioBuffer) {
+    const totalDeci = audioBuffer.duration * 10;
+    const sortedRows = [...rows].filter(r => r.time !== '').sort((a, b) => parseFloat(a.time) - parseFloat(b.time));
+    if (sortedRows.length > 1) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(233,69,96,0.7)';
+      ctx.lineWidth = 1.5;
+      sortedRows.forEach((r, i) => {
+        const t = parseFloat(r.time) || 0;
+        const s = currentFormat === 3 ? (parseFloat(r.speed) || 0) : (parseFloat(r.leftSpeed) || 0);
+        const x = (t / totalDeci) * W;
+        const y = H - (s / 100) * H;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+  }
+
+  // Time labels (zoom-aware)
+  if (audioBuffer) {
+    ctx.fillStyle = '#555';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    const dur = audioBuffer.duration;
+    // Choose interval based on zoom level
+    const viewDur = dur / waveformZoom;
+    let labelInterval;
+    if (viewDur <= 2) labelInterval = 0.1;
+    else if (viewDur <= 5) labelInterval = 0.2;
+    else if (viewDur <= 10) labelInterval = 0.5;
+    else if (viewDur <= 30) labelInterval = 1;
+    else if (viewDur <= 60) labelInterval = 2;
+    else if (viewDur <= 120) labelInterval = 5;
+    else labelInterval = Math.max(1, Math.floor(dur / 10));
+
+    for (let s = 0; s <= dur; s += labelInterval) {
+      const x = (s / dur) * W;
+      ctx.fillText(formatTime(s), x, H - 2);
+    }
+  }
+
+  // Playhead
+  if (currentTime !== undefined && audioBuffer) {
+    const x = (currentTime / audioBuffer.duration) * W;
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(1);
+  return `${String(m).padStart(2, '0')}:${s.padStart(4, '0')}`;
+}
+
+function updateAudioTime() {
+  if (!audioBuffer) return;
+  const cur = isPlaying ? ((audioContext.currentTime - playStartTime) * playbackRate + playOffset) : playOffset;
+  const total = audioBuffer.duration;
+  document.getElementById('audioTime').textContent = `${formatTime(Math.min(cur, total))} / ${formatTime(total)}`;
+}
+
+function togglePlayback() {
+  if (!audioBuffer) return;
+  if (isPlaying) {
+    pausePlayback();
+  } else {
+    startPlayback();
+  }
+}
+
+function startPlayback() {
+  if (!audioBuffer || isPlaying) return;
+  audioSource = audioContext.createBufferSource();
+  audioSource.buffer = audioBuffer;
+  audioSource.connect(audioContext.destination);
+  audioSource.onended = function() {
+    if (isPlaying) {
+      isPlaying = false;
+      playOffset = 0;
+      document.getElementById('playBtn').textContent = '▶ 再生';
+      cancelAnimationFrame(animFrameId);
+      drawWaveform(0);
+      updateAudioTime();
+    }
+  };
+  audioSource.playbackRate.value = playbackRate;
+  playStartTime = audioContext.currentTime;
+  audioSource.start(0, playOffset);
+  isPlaying = true;
+  document.getElementById('playBtn').textContent = '⏸ 一時停止';
+  animatePlayback();
+}
+
+function pausePlayback() {
+  if (!isPlaying) return;
+  audioSource.onended = null;
+  audioSource.stop();
+  playOffset += (audioContext.currentTime - playStartTime) * playbackRate;
+  isPlaying = false;
+  document.getElementById('playBtn').textContent = '▶ 再生';
+  cancelAnimationFrame(animFrameId);
+}
+
+function stopPlayback() {
+  if (isPlaying) {
+    audioSource.onended = null;
+    audioSource.stop();
+    isPlaying = false;
+  }
+  playOffset = 0;
+  document.getElementById('playBtn').textContent = '▶ 再生';
+  cancelAnimationFrame(animFrameId);
+  drawWaveform(0);
+  updateAudioTime();
+}
+
+function animatePlayback() {
+  if (!isPlaying) return;
+  const cur = (audioContext.currentTime - playStartTime) * playbackRate + playOffset;
+  drawWaveform(cur);
+  updateAudioTime();
+  animFrameId = requestAnimationFrame(animatePlayback);
+}
+
+// Click on waveform to seek (handled in pin system below)
+
+// ====== Auto Generate ======
+
+function switchAutoTab(tab) {
+  document.querySelectorAll('.auto-gen-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auto-gen-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+// --- Audio Analysis ---
+function analyzeAudioRMS(interval, silenceThresh) {
+  if (!audioBuffer) {
+    showToast('先に音声ファイルを読み込んでください', true);
+    return null;
+  }
+
+  const sampleRate = audioBuffer.sampleRate;
+  const channelData = audioBuffer.getChannelData(0);
+  const segmentSamples = Math.floor(interval * sampleRate);
+  const totalSegments = Math.floor(channelData.length / segmentSamples);
+  const segments = [];
+
+  for (let i = 0; i < totalSegments; i++) {
+    const start = i * segmentSamples;
+    let sumSq = 0;
+    for (let j = 0; j < segmentSamples; j++) {
+      const sample = channelData[start + j];
+      sumSq += sample * sample;
+    }
+    const rms = Math.sqrt(sumSq / segmentSamples);
+    const timeSec = i * interval;
+    segments.push({
+      time: timeSec,
+      rms: rms,
+      isSpeech: rms >= silenceThresh
+    });
+  }
+
+  // Normalize RMS to 0-1
+  const maxRMS = Math.max(...segments.map(s => s.rms)) || 1;
+  segments.forEach(s => s.normalizedRMS = s.rms / maxRMS);
+
+  return segments;
+}
+
+function autoGenFromAudio(append) {
+  const interval = parseFloat(document.getElementById('agAudioInterval').value) || 0.5;
+  const thresh = parseFloat(document.getElementById('agSilenceThresh').value) || 0.05;
+  const minSpeed = parseInt(document.getElementById('agAudioMinSpeed').value) || 0;
+  const maxSpeed = parseInt(document.getElementById('agAudioMaxSpeed').value) || 80;
+  const silenceSpeed = parseInt(document.getElementById('agSilenceSpeed').value) || 0;
+
+  const segments = analyzeAudioRMS(interval, thresh);
+  if (!segments) return;
+
+  const generated = segments.map(seg => {
+    const speed = seg.isSpeech
+      ? Math.round(minSpeed + (maxSpeed - minSpeed) * seg.normalizedRMS)
+      : silenceSpeed;
+    return {
+      time: Math.round(seg.time * 10), // deciseconds
+      direction: 0,
+      speed: speed
+    };
+  });
+
+  if (!append) rows = [];
+  generated.forEach(r => rows.push(createRow(r)));
+  renderTable();
+  updateInfo();
+  drawTimeline();
+  showToast(`音声解析から${generated.length}行を${append ? '追加' : '生成'}しました`);
+}
+
+function previewAudioAnalysis() {
+  const interval = parseFloat(document.getElementById('agAudioInterval').value) || 0.5;
+  const thresh = parseFloat(document.getElementById('agSilenceThresh').value) || 0.05;
+
+  const segments = analyzeAudioRMS(interval, thresh);
+  if (!segments) return;
+
+  const preview = document.getElementById('audioAnalysisPreview');
+  preview.style.display = 'block';
+
+  const speechCount = segments.filter(s => s.isSpeech).length;
+  const silenceCount = segments.length - speechCount;
+  let html = `<div style="margin-bottom:8px;color:#e0e0e0;">合計: ${segments.length}区間 | セリフ: <span style="color:#2ecc71">${speechCount}</span> | 無音: <span style="color:#666">${silenceCount}</span></div>`;
+
+  segments.forEach(seg => {
+    const typeClass = seg.isSpeech ? 'seg-speech' : 'seg-silence';
+    const typeLabel = seg.isSpeech ? 'セリフ' : '無音';
+    const bar = '█'.repeat(Math.round(seg.normalizedRMS * 20));
+    html += `<div class="seg">
+      <span class="seg-time">${seg.time.toFixed(1)}s</span>
+      <span class="seg-type ${typeClass}">${typeLabel}</span>
+      <span class="seg-speed">RMS: ${(seg.rms * 100).toFixed(1)}</span>
+      <span style="color:#0f3460">${bar}</span>
+    </div>`;
+  });
+
+  preview.innerHTML = html;
+}
+
+// --- Script Analysis ---
+const scriptKeywords = [
+  // High intensity keywords
+  { pattern: /激し[くい]/g, speedMod: 1.0, label: '激しい' },
+  { pattern: /高速/g, speedMod: 1.0, label: '高速' },
+  { pattern: /速く|速い|速め/g, speedMod: 0.8, label: '速い' },
+  { pattern: /強く|強い|強め/g, speedMod: 0.9, label: '強い' },
+  { pattern: /加速/g, speedMod: 0.85, label: '加速' },
+  { pattern: /クライマックス|フルーツピーク|フルーツクライマックス/g, speedMod: 1.0, label: 'クライマックス' },
+  { pattern: /イク|イッ[ちくて]|イキ/g, speedMod: 1.0, label: '絶頂' },
+  { pattern: /カウントダウン/g, speedMod: 0.9, label: 'カウントダウン' },
+  // Medium intensity
+  { pattern: /テンポを上げ/g, speedMod: 0.7, label: 'テンポアップ' },
+  { pattern: /強度を上げ/g, speedMod: 0.75, label: '強度アップ' },
+  // Low intensity keywords
+  { pattern: /ゆっくり/g, speedMod: 0.2, label: 'ゆっくり' },
+  { pattern: /スロー/g, speedMod: 0.15, label: 'スロー' },
+  { pattern: /焦らす|じらす|じらし/g, speedMod: 0.2, label: '焦らし' },
+  { pattern: /優しく|優しい/g, speedMod: 0.25, label: '優しい' },
+  { pattern: /そっと/g, speedMod: 0.15, label: 'そっと' },
+  // Stop
+  { pattern: /停止|止め|ストップ/g, speedMod: 0.0, label: '停止' },
+  // SE/action keywords (moderate)
+  { pattern: /くちゅ|ぴちゃ|ちゅぱ|れろ/g, speedMod: 0.5, label: 'SE音' },
+  { pattern: /シコ|モギモギ/g, speedMod: 0.6, label: '動作音' },
+  { pattern: /カリカリ/g, speedMod: 0.5, label: '刺激音' },
+];
+
+function parseScript(text) {
+  if (!text || text.trim().length === 0) {
+    showToast('台本テキストを入力してください', true);
+    return null;
+  }
+
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const charsPerMin = 240;
+  const charsPerSec = charsPerMin / 60;
+
+  // Parse each line and calculate timing
+  let currentTimeSec = 0;
+  const sections = [];
+  let currentSpeedMod = 0.4; // default moderate
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Check if it's a direction/instruction line
+    const isDirection = /^（|^【|^◆|^SE[:：]|^＊/.test(trimmed);
+    const isPartHeader = /^◆パート|^◆Part|^##/.test(trimmed);
+
+    if (isPartHeader) {
+      // Part headers add a small pause
+      sections.push({
+        time: currentTimeSec,
+        type: 'part',
+        text: trimmed,
+        speedMod: 0,
+        duration: 3 // 3 second pause between parts
+      });
+      currentTimeSec += 3;
+      continue;
+    }
+
+    if (isDirection) {
+      // Check for speed-modifying keywords in directions
+      let foundMod = null;
+      let foundLabel = '';
+      for (const kw of scriptKeywords) {
+        kw.pattern.lastIndex = 0;
+        if (kw.pattern.test(trimmed)) {
+          if (foundMod === null || Math.abs(kw.speedMod - 0.5) > Math.abs(foundMod - 0.5)) {
+            foundMod = kw.speedMod;
+            foundLabel = kw.label;
+          }
+        }
+      }
+      if (foundMod !== null) {
+        currentSpeedMod = foundMod;
+        sections.push({
+          time: currentTimeSec,
+          type: 'direction',
+          text: trimmed,
+          speedMod: currentSpeedMod,
+          label: foundLabel,
+          duration: 0
+        });
+      } else {
+        // SE/action with default timing
+        sections.push({
+          time: currentTimeSec,
+          type: 'se',
+          text: trimmed,
+          speedMod: currentSpeedMod,
+          duration: 5 // default SE duration
+        });
+        currentTimeSec += 5;
+      }
+      continue;
+    }
+
+    // It's a dialogue line
+    // Remove $fruit$ markers and count clean characters
+    const cleanText = trimmed.replace(/\$[^$]+\$/g, '○○').replace(/[♡…！？、。〜～「」『』（）【】]/g, '');
+    const charCount = cleanText.length;
+    const duration = charCount / charsPerSec;
+
+    // Check for speed keywords within dialogue
+    for (const kw of scriptKeywords) {
+      kw.pattern.lastIndex = 0;
+      if (kw.pattern.test(trimmed)) {
+        currentSpeedMod = kw.speedMod;
+      }
+    }
+
+    sections.push({
+      time: currentTimeSec,
+      type: 'dialogue',
+      text: trimmed.substring(0, 40) + (trimmed.length > 40 ? '...' : ''),
+      speedMod: currentSpeedMod,
+      charCount: charCount,
+      duration: Math.max(duration, 0.5)
+    });
+    currentTimeSec += Math.max(duration, 0.5);
+
+    // Add small pause after dialogue
+    currentTimeSec += 0.3;
+  }
+
+  return sections;
+}
+
+function autoGenFromScript(append) {
+  const text = document.getElementById('scriptText').value;
+  const baseSpeed = parseInt(document.getElementById('agScriptBaseSpeed').value) || 40;
+  const interval = parseFloat(document.getElementById('agScriptInterval').value) || 0.5;
+
+  const sections = parseScript(text);
+  if (!sections) return;
+
+  // Generate CSV rows at regular intervals
+  const totalDuration = sections.length > 0
+    ? sections[sections.length - 1].time + (sections[sections.length - 1].duration || 0)
+    : 0;
+
+  if (totalDuration <= 0) {
+    showToast('生成するデータがありません', true);
+    return;
+  }
+
+  const generated = [];
+  for (let t = 0; t < totalDuration; t += interval) {
+    // Find which section this time falls in
+    let speedMod = 0;
+    for (let i = sections.length - 1; i >= 0; i--) {
+      if (sections[i].time <= t) {
+        speedMod = sections[i].speedMod;
+        // If we're past the section's end, it might be a gap
+        if (sections[i].duration > 0 && t > sections[i].time + sections[i].duration) {
+          // Check if next section hasn't started yet - this is a gap
+          if (i + 1 < sections.length && t < sections[i + 1].time) {
+            speedMod = 0; // silence between sections
+          }
+        }
+        break;
+      }
+    }
+
+    const speed = Math.round(baseSpeed * speedMod);
+    generated.push({
+      time: Math.round(t * 10),
+      direction: 0,
+      speed: Math.min(100, Math.max(0, speed))
+    });
+  }
+
+  if (!append) rows = [];
+  generated.forEach(r => rows.push(createRow(r)));
+  renderTable();
+  updateInfo();
+  drawTimeline();
+
+  // Show preview
+  const preview = document.getElementById('scriptAnalysisPreview');
+  preview.style.display = 'block';
+  let html = `<div style="margin-bottom:8px;color:#e0e0e0;">解析結果: ${sections.length}セクション | 推定時間: ${totalDuration.toFixed(1)}秒 | 生成行数: ${generated.length}</div>`;
+  sections.forEach(sec => {
+    const typeColors = { part: '#e94560', direction: '#f39c12', se: '#9b59b6', dialogue: '#2ecc71' };
+    const typeLabels = { part: 'パート', direction: '演技指示', se: 'SE', dialogue: 'セリフ' };
+    html += `<div class="seg">
+      <span class="seg-time">${sec.time.toFixed(1)}s</span>
+      <span style="color:${typeColors[sec.type]}">${typeLabels[sec.type]}</span>
+      <span class="seg-speed">${sec.label || ''} → 速度×${sec.speedMod.toFixed(1)}</span>
+      <span style="color:#666;font-size:0.75rem;">${sec.text}</span>
+    </div>`;
+  });
+  preview.innerHTML = html;
+
+  showToast(`台本から${generated.length}行を${append ? '追加' : '生成'}しました`);
+}
+
+// --- Hybrid Mode ---
+function autoGenHybrid(append) {
+  const interval = parseFloat(document.getElementById('agHybridInterval').value) || 0.5;
+  const thresh = parseFloat(document.getElementById('agHybridThresh').value) || 0.05;
+  const minSpeed = parseInt(document.getElementById('agHybridMinSpeed').value) || 0;
+  const maxSpeed = parseInt(document.getElementById('agHybridMaxSpeed').value) || 80;
+  const scriptWeight = parseFloat(document.getElementById('agHybridWeight').value) || 0.5;
+  const scriptText = document.getElementById('hybridScriptText').value;
+
+  // Audio analysis
+  const segments = analyzeAudioRMS(interval, thresh);
+  if (!segments) return;
+
+  // Script analysis (optional but recommended)
+  const sections = scriptText.trim() ? parseScript(scriptText) : null;
+
+  // Get the audio-derived speed for each segment
+  const generated = segments.map(seg => {
+    const audioSpeed = seg.isSpeech
+      ? minSpeed + (maxSpeed - minSpeed) * seg.normalizedRMS
+      : 0;
+
+    let finalSpeed = audioSpeed;
+
+    // If script data is available, blend it
+    if (sections && sections.length > 0) {
+      // Find the section that corresponds to this time
+      // Scale script time to audio time
+      const scriptTotalDuration = sections[sections.length - 1].time + (sections[sections.length - 1].duration || 0);
+      const audioDuration = audioBuffer ? audioBuffer.duration : segments.length * interval;
+      const timeScale = audioDuration / (scriptTotalDuration || 1);
+
+      let scriptSpeedMod = 0.4; // default
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const scaledTime = sections[i].time * timeScale;
+        if (scaledTime <= seg.time) {
+          scriptSpeedMod = sections[i].speedMod;
+          break;
+        }
+      }
+
+      const scriptSpeed = maxSpeed * scriptSpeedMod;
+
+      // Blend: audio provides timing (speech/silence), script provides intensity
+      if (seg.isSpeech) {
+        finalSpeed = audioSpeed * (1 - scriptWeight) + scriptSpeed * scriptWeight;
+      } else {
+        // During silence, respect the script if it says to keep going
+        finalSpeed = scriptSpeedMod > 0.5 ? scriptSpeed * 0.3 : 0;
+      }
+    }
+
+    return {
+      time: Math.round(seg.time * 10),
+      direction: 0,
+      speed: Math.min(100, Math.max(0, Math.round(finalSpeed)))
+    };
+  });
+
+  if (!append) rows = [];
+  generated.forEach(r => rows.push(createRow(r)));
+  renderTable();
+  updateInfo();
+  drawTimeline();
+
+  // Show preview
+  const preview = document.getElementById('hybridAnalysisPreview');
+  preview.style.display = 'block';
+  const speechCount = segments.filter(s => s.isSpeech).length;
+  let html = `<div style="margin-bottom:8px;color:#e0e0e0;">
+    音声: ${segments.length}区間（セリフ: ${speechCount}）
+    ${sections ? ` | 台本: ${sections.length}セクション | 補正強度: ${(scriptWeight * 100).toFixed(0)}%` : ' | 台本: なし（音声のみ）'}
+    | 生成行数: ${generated.length}
+  </div>`;
+  preview.innerHTML = html;
+
+  showToast(`ハイブリッドで${generated.length}行を${append ? '追加' : '生成'}しました`);
+}
+
+// ====== Pin at Current Position ======
+function pinAtCurrentPosition() {
+  if (!audioBuffer) {
+    showToast('先に音声ファイルを読み込んでください', true);
+    return;
+  }
+  const cur = isPlaying ? ((audioContext.currentTime - playStartTime) * playbackRate + playOffset) : playOffset;
+  const clampedTime = Math.max(0, Math.min(cur, audioBuffer.duration));
+  addPin(clampedTime);
+  showToast(`📌 ピンを配置: ${formatTime(clampedTime)}`);
+}
+
+// ====== Playback Speed ======
+function setPlaybackSpeed(rate, btnEl) {
+  playbackRate = rate;
+  // Update active button
+  document.querySelectorAll('.speed-controls button').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  // If currently playing, restart with new speed
+  if (isPlaying) {
+    const cur = (audioContext.currentTime - playStartTime) * (audioSource.playbackRate.value) + playOffset;
+    audioSource.onended = null;
+    audioSource.stop();
+    isPlaying = false;
+    playOffset = cur;
+    startPlayback();
+  }
+}
+
+// ====== Pin System ======
+let waveformPins = []; // array of time values in seconds
+let pinModeActive = false;
+
+function togglePinMode() {
+  pinModeActive = !pinModeActive;
+  const btn = document.getElementById('pinModeBtn');
+  btn.classList.toggle('active', pinModeActive);
+  document.getElementById('pinInfo').textContent = pinModeActive
+    ? '📌 ピンモードON: 波形をクリックしてピンを配置'
+    : 'クリックで波形上にピンを配置';
+}
+
+function addPin(timeSec) {
+  // Avoid duplicates within 0.05s
+  if (waveformPins.some(p => Math.abs(p - timeSec) < 0.05)) return;
+  waveformPins.push(timeSec);
+  waveformPins.sort((a, b) => a - b);
+  renderPinList();
+  renderPinSections();
+  drawWaveform(isPlaying ? (audioContext.currentTime - playStartTime + playOffset) : playOffset);
+}
+
+function removePin(index) {
+  waveformPins.splice(index, 1);
+  renderPinList();
+  renderPinSections();
+  drawWaveform(isPlaying ? (audioContext.currentTime - playStartTime + playOffset) : playOffset);
+}
+
+function clearAllPins() {
+  if (waveformPins.length === 0) return;
+  waveformPins = [];
+  renderPinList();
+  renderPinSections();
+  drawWaveform(isPlaying ? (audioContext.currentTime - playStartTime + playOffset) : playOffset);
+  showToast('ピンを全て削除しました');
+}
+
+function renderPinList() {
+  const list = document.getElementById('pinList');
+  if (waveformPins.length === 0) {
+    list.style.display = 'none';
+    return;
+  }
+  list.style.display = 'flex';
+  list.innerHTML = waveformPins.map((p, i) =>
+    `<span class="pin-tag">📌 ${formatTime(p)}<span class="pin-remove" onclick="removePin(${i})">×</span></span>`
+  ).join('');
+}
+
+function renderPinSections() {
+  const container = document.getElementById('pinSectionGen');
+  const listEl = document.getElementById('pinSectionList');
+
+  if (waveformPins.length < 2) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+
+  // Save existing checkbox states before re-rendering
+  const savedStates = {};
+  for (let i = 0; i < waveformPins.length - 1; i++) {
+    savedStates[i] = getSectionStateIfExists(i);
+  }
+
+  let html = '';
+  for (let i = 0; i < waveformPins.length - 1; i++) {
+    const startT = waveformPins[i];
+    const endT = waveformPins[i + 1];
+    const dur = endT - startT;
+    const saved = savedStates[i];
+    const isLinked = saved ? saved.linked : true;
+
+    html += `<div class="pin-section-item" id="pinSection_${i}">
+      <div class="section-header">
+        <span class="section-label">区間${i + 1}: ${formatTime(startT)} → ${formatTime(endT)}</span>
+        <span class="section-dur">(${dur.toFixed(1)}秒)</span>
+        <div class="preset-param" style="flex-direction:row;gap:4px;align-items:center;">
+          <label style="font-size:0.75rem;color:#888;">間隔:</label>
+          <input type="number" id="pinInterval_${i}" value="${saved ? saved.interval : '0.5'}" min="0.1" max="5" step="0.1" style="width:60px;padding:4px;border:1px solid #0f3460;border-radius:4px;background:#1a1a2e;color:#e0e0e0;font-size:0.8rem;">
+        </div>
+      </div>
+      <div class="section-link-row">
+        <span class="link-toggle ${isLinked ? 'linked' : ''}" id="pinLink_${i}" onclick="toggleLinkMode(${i})">
+          ${isLinked ? '🔗 左右連動' : '🔓 左右独立'}
+        </span>
+      </div>
+      <div class="section-lr-panels" id="pinPanels_${i}">
+        ${buildLRPanelHTML(i, 'L', '左', 'panel-left', isLinked, saved)}
+        ${isLinked ? '' : buildLRPanelHTML(i, 'R', '右', 'panel-right', false, saved)}
+      </div>
+    </div>`;
+  }
+  listEl.innerHTML = html;
+}
+
+function buildLRPanelHTML(secIdx, side, sideLabel, panelClass, isLinked, saved) {
+  const prefix = `pinCb_${secIdx}_${side}_`;
+  const title = isLinked ? '左右共通' : sideLabel;
+  const s = saved && saved[side] ? saved[side] : {};
+
+  const cbItems = [
+    { row: '回転', items: [
+      { id: 'cw', label: '右回り', checked: s.cw || false },
+      { id: 'ccw', label: '左回り', checked: s.ccw || false },
+    ]},
+    { row: 'パターン', items: [
+      { id: 'constant', label: '一定速度', checked: s.constant || false },
+      { id: 'alternate', label: '正逆交互', checked: s.alternate || false },
+    ]},
+    { row: '強度', items: [
+      { id: 'xweak', label: '最微弱', checked: s.xweak || false },
+      { id: 'weak', label: '弱', checked: s.weak || false },
+      { id: 'mid', label: '中', checked: s.mid || false },
+      { id: 'strong', label: '強', checked: s.strong || false },
+      { id: 'xstrong', label: '最強', checked: s.xstrong || false },
+    ]},
+  ];
+
+  let rowsHtml = '';
+  for (const row of cbItems) {
+    rowsHtml += `<div class="cb-row"><span class="cb-row-label">${row.row}:</span>`;
+    for (const item of row.items) {
+      const cbId = prefix + item.id;
+      rowsHtml += `<span class="cb-item"><input type="checkbox" id="${cbId}" ${item.checked ? 'checked' : ''}><label for="${cbId}">${item.label}</label></span>`;
+    }
+    rowsHtml += `</div>`;
+  }
+
+  return `<div class="lr-panel ${panelClass}">
+    <div class="lr-panel-title">${title}</div>
+    ${rowsHtml}
+  </div>`;
+}
+
+function getSectionStateIfExists(secIdx) {
+  const linkEl = document.getElementById(`pinLink_${secIdx}`);
+  if (!linkEl) return null;
+
+  const linked = linkEl.classList.contains('linked');
+  const intervalEl = document.getElementById(`pinInterval_${secIdx}`);
+  const interval = intervalEl ? intervalEl.value : '0.5';
+
+  const readSide = (side) => {
+    const prefix = `pinCb_${secIdx}_${side}_`;
+    const cb = (id) => {
+      const el = document.getElementById(prefix + id);
+      return el ? el.checked : false;
+    };
+    return {
+      cw: cb('cw'), ccw: cb('ccw'),
+      constant: cb('constant'), alternate: cb('alternate'),
+      xweak: cb('xweak'), weak: cb('weak'), mid: cb('mid'),
+      strong: cb('strong'), xstrong: cb('xstrong'),
+    };
+  };
+
+  return { linked, interval, L: readSide('L'), R: linked ? readSide('L') : readSide('R') };
+}
+
+function toggleLinkMode(secIdx) {
+  const linkEl = document.getElementById(`pinLink_${secIdx}`);
+  const isLinked = linkEl.classList.contains('linked');
+
+  // Save current state before toggling
+  const state = getSectionStateIfExists(secIdx);
+  if (!state) return;
+
+  state.linked = !isLinked;
+  // When switching to independent, copy L to R as starting point
+  if (isLinked) {
+    state.R = { ...state.L };
+  }
+
+  // Re-render this section's panels
+  const panelsEl = document.getElementById(`pinPanels_${secIdx}`);
+  if (state.linked) {
+    linkEl.classList.add('linked');
+    linkEl.innerHTML = '🔗 左右連動';
+    panelsEl.innerHTML = buildLRPanelHTML(secIdx, 'L', '左', 'panel-left', true, state);
+  } else {
+    linkEl.classList.remove('linked');
+    linkEl.innerHTML = '🔓 左右独立';
+    panelsEl.innerHTML =
+      buildLRPanelHTML(secIdx, 'L', '左', 'panel-left', false, state) +
+      buildLRPanelHTML(secIdx, 'R', '右', 'panel-right', false, state);
+  }
+}
+
+function resolveSpeedFromFlags(flags) {
+  const intensityMap = [
+    { key: 'xstrong', speed: 100 },
+    { key: 'strong', speed: 80 },
+    { key: 'mid', speed: 60 },
+    { key: 'weak', speed: 40 },
+    { key: 'xweak', speed: 20 },
+  ];
+  for (const entry of intensityMap) {
+    if (flags[entry.key]) return entry.speed;
+  }
+  return 0;
+}
+
+function resolveDirFromFlags(flags) {
+  if (flags.ccw && !flags.cw) return 1;
+  return 0;
+}
+
+function sideHasAnyChecked(flags) {
+  return Object.values(flags).some(v => v);
+}
+
+function generateSectionFromCheckboxes(sectionIdx, startT, dur, interval) {
+  const state = getSectionStateIfExists(sectionIdx);
+  if (!state) return [];
+
+  const is5col = currentFormat === 5;
+  const linked = state.linked;
+  const flagsL = state.L;
+  const flagsR = linked ? state.L : state.R;
+
+  const leftActive = sideHasAnyChecked(flagsL);
+  const rightActive = sideHasAnyChecked(flagsR);
+  if (!leftActive && !rightActive) return [];
+
+  const speedL = resolveSpeedFromFlags(flagsL);
+  const speedR = resolveSpeedFromFlags(flagsR);
+  if (speedL === 0 && speedR === 0) return [];
+
+  const baseDirL = resolveDirFromFlags(flagsL);
+  const baseDirR = resolveDirFromFlags(flagsR);
+  const altL = flagsL.alternate;
+  const altR = flagsR.alternate;
+
+  const steps = Math.floor(dur / interval);
+  const generated = [];
+
+  for (let s = 0; s <= steps; s++) {
+    const t = startT + s * interval;
+    const dirL = altL ? ((baseDirL + s) % 2) : baseDirL;
+    const dirR = altR ? ((baseDirR + s) % 2) : baseDirR;
+
+    if (is5col) {
+      generated.push({
+        time: Math.round(t * 10),
+        leftDir: leftActive ? dirL : 0,
+        leftSpeed: leftActive ? speedL : 0,
+        rightDir: rightActive ? dirR : 0,
+        rightSpeed: rightActive ? speedR : 0,
+      });
+    } else {
+      // 3-column: use left panel settings (or whichever is active)
+      const activeFlags = leftActive ? flagsL : flagsR;
+      const spd = leftActive ? speedL : speedR;
+      const dir = leftActive ? dirL : dirR;
+      generated.push({
+        time: Math.round(t * 10),
+        direction: dir,
+        speed: spd,
+      });
+    }
+  }
+
+  return generated;
+}
+
+function generateFromPinSections(append) {
+  if (waveformPins.length < 2) {
+    showToast('2つ以上のピンが必要です', true);
+    return;
+  }
+
+  const allGenerated = [];
+  for (let i = 0; i < waveformPins.length - 1; i++) {
+    const startT = waveformPins[i];
+    const endT = waveformPins[i + 1];
+    const dur = endT - startT;
+    const interval = parseFloat(document.getElementById(`pinInterval_${i}`).value) || 0.5;
+    const generated = generateSectionFromCheckboxes(i, startT, dur, interval);
+    allGenerated.push(...generated);
+  }
+
+  if (allGenerated.length === 0) {
+    showToast('チェックが入っている区間がないか、強度が未選択です', true);
+    return;
+  }
+
+  if (!append) rows = [];
+  allGenerated.forEach(r => rows.push(createRow(r)));
+  renderTable();
+  updateInfo();
+  drawTimeline();
+  showToast(`ピン区間から${allGenerated.length}行を${append ? '追加' : '生成'}しました`);
+}
+
+// Waveform click handler with pin mode support
+const waveformCanvas = document.getElementById('waveformCanvas');
+waveformCanvas.addEventListener('click', function(e) {
+  if (!audioBuffer) return;
+  const rect = this.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const wrap = document.getElementById('waveformWrap');
+  const scrollX = wrap.scrollLeft + x;
+  const ratio = scrollX / this.width;
+  const seekTime = ratio * audioBuffer.duration;
+
+  if (pinModeActive) {
+    addPin(seekTime);
+    return;
+  }
+
+  // Default seek behavior
+  if (isPlaying) {
+    audioSource.onended = null;
+    audioSource.stop();
+    isPlaying = false;
+    playOffset = seekTime;
+    startPlayback();
+  } else {
+    playOffset = seekTime;
+    drawWaveform(seekTime);
+    updateAudioTime();
+  }
+});
+
+// Override drawWaveform to also draw pins and zoom grid
+const _origDrawWaveform = drawWaveform;
+drawWaveform = function(currentTime) {
+  _origDrawWaveform(currentTime);
+
+  if (!audioBuffer) return;
+
+  // Draw 0.1s grid lines when zoomed
+  if (waveformZoom >= 4) {
+    const canvas = document.getElementById('waveformCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    const dur = audioBuffer.duration;
+    const gridInterval = waveformZoom >= 8 ? 0.1 : 0.5;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let s = 0; s <= dur; s += gridInterval) {
+      const x = (s / dur) * W;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+  }
+
+  if (waveformPins.length === 0) return;
+
+  const canvas = document.getElementById('waveformCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  const dur = audioBuffer.duration;
+
+  // Draw pin section highlights
+  for (let i = 0; i < waveformPins.length - 1; i++) {
+    const x1 = (waveformPins[i] / dur) * W;
+    const x2 = (waveformPins[i + 1] / dur) * W;
+    const colors = ['rgba(243,156,18,0.08)', 'rgba(52,152,219,0.08)'];
+    ctx.fillStyle = colors[i % 2];
+    ctx.fillRect(x1, 0, x2 - x1, H);
+  }
+
+  // Draw pins
+  waveformPins.forEach((pinTime, idx) => {
+    const x = (pinTime / dur) * W;
+
+    // Pin line
+    ctx.strokeStyle = '#f39c12';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Pin head (triangle)
+    ctx.fillStyle = '#f39c12';
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x - 6, 12);
+    ctx.lineTo(x + 6, 12);
+    ctx.closePath();
+    ctx.fill();
+
+    // Pin number
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(idx + 1), x, 10);
+
+    // Time label
+    ctx.fillStyle = '#f39c12';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(formatTime(pinTime), x, 22);
+  });
+};
+
+// Show pin controls when audio is loaded
+const _origLoadAudioFile = loadAudioFile;
+loadAudioFile = function(event) {
+  _origLoadAudioFile(event);
+  // The controls will be shown after audio decode in the callback
+  // We need to hook into the success path
+};
+
+// Patch: show pin controls and zoom controls when waveform becomes visible
+const _origShowWaveform = new MutationObserver(function() {
+  const wrap = document.getElementById('waveformWrap');
+  if (wrap && wrap.style.display === 'block') {
+    document.getElementById('pinControls').style.display = 'flex';
+    document.getElementById('zoomControls').style.display = 'flex';
+    updateZoomInfo();
+  }
+});
+_origShowWaveform.observe(document.getElementById('waveformWrap'), { attributes: true, attributeFilter: ['style'] });
+
+// ====== Waveform Zoom ======
+let waveformZoom = 1;
+let waveformViewStart = 0; // seconds offset of the visible window start
+
+function setWaveformZoom(level) {
+  if (!audioBuffer) return;
+  waveformZoom = level;
+
+  // Update active button
+  document.querySelectorAll('.waveform-zoom-controls button:not(.step-btn)').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`zoom${level}x`);
+  if (btn) btn.classList.add('active');
+
+  // Clamp view start
+  clampViewStart();
+  updateZoomInfo();
+
+  // Resize canvas
+  const canvas = document.getElementById('waveformCanvas');
+  canvas.width = 860 * waveformZoom;
+
+  // Re-extract waveform for new resolution
+  waveformData = extractWaveform(audioBuffer, 860 * waveformZoom);
+
+  const cur = isPlaying ? ((audioContext.currentTime - playStartTime) * playbackRate + playOffset) : playOffset;
+  drawWaveform(cur);
+}
+
+function clampViewStart() {
+  if (!audioBuffer) return;
+  const dur = audioBuffer.duration;
+  const windowDur = dur / waveformZoom;
+  waveformViewStart = Math.max(0, Math.min(waveformViewStart, dur - windowDur));
+}
+
+function stepWaveformView(deltaSec) {
+  if (!audioBuffer) return;
+  waveformViewStart += deltaSec;
+  clampViewStart();
+  updateZoomInfo();
+
+  const cur = isPlaying ? ((audioContext.currentTime - playStartTime) * playbackRate + playOffset) : playOffset;
+  drawWaveform(cur);
+
+  // Scroll canvas container to show the current view
+  scrollWaveformToView();
+}
+
+function scrollWaveformToView() {
+  if (!audioBuffer) return;
+  const wrap = document.getElementById('waveformWrap');
+  const canvas = document.getElementById('waveformCanvas');
+  const dur = audioBuffer.duration;
+  const scrollRatio = waveformViewStart / dur;
+  wrap.scrollLeft = scrollRatio * canvas.width;
+}
+
+function updateZoomInfo() {
+  if (!audioBuffer) return;
+  const dur = audioBuffer.duration;
+  const windowDur = dur / waveformZoom;
+  const endTime = Math.min(waveformViewStart + windowDur, dur);
+  document.getElementById('zoomInfo').textContent =
+    `表示範囲: ${formatTime(waveformViewStart)} - ${formatTime(endTime)} (${windowDur.toFixed(1)}秒)`;
+}
+
+// Scroll sync: when user scrolls the waveform container, update viewStart
+document.getElementById('waveformWrap').addEventListener('scroll', function() {
+  if (!audioBuffer || waveformZoom <= 1) return;
+  const canvas = document.getElementById('waveformCanvas');
+  const dur = audioBuffer.duration;
+  const scrollRatio = this.scrollLeft / canvas.width;
+  waveformViewStart = scrollRatio * dur;
+  clampViewStart();
+  updateZoomInfo();
+});
+
+// Mouse wheel zoom on waveform
+document.getElementById('waveformCanvas').addEventListener('wheel', function(e) {
+  if (!audioBuffer) return;
+  e.preventDefault();
+  const rect = this.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const wrap = document.getElementById('waveformWrap');
+  const scrollX = wrap.scrollLeft + mouseX;
+  const ratio = scrollX / this.width;
+  const timeBefore = ratio * audioBuffer.duration;
+
+  const zoomLevels = [1, 2, 4, 8, 16];
+  let idx = zoomLevels.indexOf(waveformZoom);
+  if (idx === -1) idx = 0;
+
+  if (e.deltaY < 0 && idx < zoomLevels.length - 1) {
+    idx++;
+  } else if (e.deltaY > 0 && idx > 0) {
+    idx--;
+  } else {
+    return;
+  }
+
+  const newZoom = zoomLevels[idx];
+  waveformZoom = newZoom;
+
+  // Update active button
+  document.querySelectorAll('.waveform-zoom-controls button:not(.step-btn)').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`zoom${newZoom}x`);
+  if (btn) btn.classList.add('active');
+
+  // Resize canvas
+  const canvas = document.getElementById('waveformCanvas');
+  canvas.width = 860 * waveformZoom;
+  waveformData = extractWaveform(audioBuffer, 860 * waveformZoom);
+
+  // Keep mouse position centered on same time
+  const newX = (timeBefore / audioBuffer.duration) * canvas.width;
+  waveformViewStart = Math.max(0, timeBefore - (mouseX / (860 * waveformZoom)) * audioBuffer.duration);
+  clampViewStart();
+  updateZoomInfo();
+
+  const cur = isPlaying ? ((audioContext.currentTime - playStartTime) * playbackRate + playOffset) : playOffset;
+  drawWaveform(cur);
+
+  // Set scroll position to keep mouse at same time
+  wrap.scrollLeft = newX - mouseX;
+}, { passive: false });
+
+// ====== Save/Load System ======
+const SAVE_STORAGE_KEY = 'ufotw_csv_gen_saves';
+
+function getSavedSlots() {
+  try {
+    const data = localStorage.getItem(SAVE_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setSavedSlots(slots) {
+  localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(slots));
+}
+
+function collectCurrentState() {
+  // Collect pin section states
+  const pinSectionStates = [];
+  for (let i = 0; i < waveformPins.length - 1; i++) {
+    pinSectionStates.push(getSectionStateIfExists(i));
+  }
+
+  return {
+    currentFormat: currentFormat,
+    rows: JSON.parse(JSON.stringify(rows)),
+    rowIdCounter: rowIdCounter,
+    waveformPins: [...waveformPins],
+    pinSectionStates: pinSectionStates,
+    waveformZoom: waveformZoom,
+    waveformViewStart: waveformViewStart,
+  };
+}
+
+function saveCurrentWork() {
+  const nameInput = document.getElementById('saveSlotName');
+  const name = nameInput.value.trim() || `保存 ${new Date().toLocaleString('ja-JP')}`;
+
+  const state = collectCurrentState();
+  const slot = {
+    id: Date.now(),
+    name: name,
+    timestamp: new Date().toISOString(),
+    rowCount: rows.length,
+    pinCount: waveformPins.length,
+    format: currentFormat,
+    state: state,
+  };
+
+  const slots = getSavedSlots();
+  slots.unshift(slot);
+  setSavedSlots(slots);
+
+  nameInput.value = '';
+  renderSaveSlots();
+  showToast(`「${name}」を保存しました`);
+}
+
+function overwriteSlot(slotId) {
+  const slots = getSavedSlots();
+  const idx = slots.findIndex(s => s.id === slotId);
+  if (idx === -1) return;
+
+  if (!confirm(`「${slots[idx].name}」を上書きしますか？`)) return;
+
+  const state = collectCurrentState();
+  slots[idx].timestamp = new Date().toISOString();
+  slots[idx].rowCount = rows.length;
+  slots[idx].pinCount = waveformPins.length;
+  slots[idx].format = currentFormat;
+  slots[idx].state = state;
+
+  setSavedSlots(slots);
+  renderSaveSlots();
+  showToast(`「${slots[idx].name}」を上書き保存しました`);
+}
+
+function loadSlot(slotId) {
+  const slots = getSavedSlots();
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  if (rows.length > 1 || waveformPins.length > 0) {
+    if (!confirm(`現在の作業データを破棄して「${slot.name}」を読み込みますか？`)) return;
+  }
+
+  const state = slot.state;
+
+  // Restore format
+  currentFormat = state.currentFormat || 3;
+  document.getElementById('btn3col').classList.toggle('active', currentFormat === 3);
+  document.getElementById('btn5col').classList.toggle('active', currentFormat === 5);
+
+  // Restore rows
+  rows = state.rows || [];
+  rowIdCounter = state.rowIdCounter || rows.length;
+
+  // Restore pins
+  waveformPins = state.waveformPins || [];
+
+  // Render table and pins
+  renderTable();
+  updateInfo();
+  renderPinList();
+  renderPinSections();
+
+  // Restore pin section checkbox states after render
+  if (state.pinSectionStates && state.pinSectionStates.length > 0) {
+    setTimeout(() => {
+      state.pinSectionStates.forEach((sectionState, secIdx) => {
+        if (!sectionState) return;
+
+        // Restore interval
+        const intervalEl = document.getElementById(`pinInterval_${secIdx}`);
+        if (intervalEl && sectionState.interval) {
+          intervalEl.value = sectionState.interval;
+        }
+
+        // Restore link state
+        const linkEl = document.getElementById(`pinLink_${secIdx}`);
+        if (linkEl) {
+          const currentlyLinked = linkEl.classList.contains('linked');
+          if (currentlyLinked !== sectionState.linked) {
+            toggleLinkMode(secIdx);
+          }
+        }
+
+        // Restore checkbox states
+        const restoreSide = (side, flags) => {
+          if (!flags) return;
+          const prefix = `pinCb_${secIdx}_${side}_`;
+          Object.entries(flags).forEach(([key, val]) => {
+            const el = document.getElementById(prefix + key);
+            if (el) el.checked = val;
+          });
+        };
+
+        restoreSide('L', sectionState.L);
+        if (!sectionState.linked) {
+          restoreSide('R', sectionState.R);
+        }
+      });
+    }, 50);
+  }
+
+  // Restore zoom
+  if (state.waveformZoom && audioBuffer) {
+    waveformViewStart = state.waveformViewStart || 0;
+    setWaveformZoom(state.waveformZoom);
+  }
+
+  // Redraw
+  if (audioBuffer) {
+    drawWaveform(playOffset);
+  }
+  drawTimeline();
+
+  showToast(`「${slot.name}」を読み込みました`);
+}
+
+function deleteSlot(slotId) {
+  const slots = getSavedSlots();
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+  if (!confirm(`「${slot.name}」を削除しますか？`)) return;
+
+  const newSlots = slots.filter(s => s.id !== slotId);
+  setSavedSlots(newSlots);
+  renderSaveSlots();
+  showToast(`「${slot.name}」を削除しました`);
+}
+
+function renderSaveSlots() {
+  const container = document.getElementById('saveSlotList');
+  const slots = getSavedSlots();
+
+  if (slots.length === 0) {
+    container.innerHTML = '<div class="save-empty">保存データはありません</div>';
+    return;
+  }
+
+  container.innerHTML = slots.map(slot => {
+    const date = new Date(slot.timestamp);
+    const dateStr = date.toLocaleString('ja-JP', {
+      month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    const formatStr = slot.format === 5 ? '5列' : '3列';
+
+    return `<div class="save-slot">
+      <div class="save-slot-info">
+        <div class="save-slot-name">${escapeHtml(slot.name)}</div>
+        <div class="save-slot-meta">${dateStr} | ${formatStr} | ${slot.rowCount}行 | ピン${slot.pinCount}個</div>
+      </div>
+      <button class="btn-load" onclick="loadSlot(${slot.id})">読み込み</button>
+      <button class="btn-overwrite" onclick="overwriteSlot(${slot.id})">上書き</button>
+      <button class="btn-delete" onclick="deleteSlot(${slot.id})">削除</button>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Initialize
+renderPresets();
+addRow();
+renderSaveSlots();
+</script>
+</body>
+</html>

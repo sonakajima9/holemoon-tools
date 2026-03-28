@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音声セリフ抽出ツール</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+    color: #e94560;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 900px;
+  }
+
+  .upload-area {
+    border: 2px dashed #e94560;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .upload-area:hover, .upload-area.dragover {
+    background: rgba(233, 69, 96, 0.1);
+    border-color: #ff6b81;
+  }
+
+  .upload-area input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-icon {
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+  }
+
+  .upload-text {
+    font-size: 1rem;
+    color: #aaa;
+  }
+
+  .upload-text strong {
+    color: #e94560;
+  }
+
+  .settings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: #16213e;
+    border-radius: 10px;
+  }
+
+  .setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+  }
+
+  .setting-group label {
+    font-size: 0.8rem;
+    color: #888;
+  }
+
+  .setting-group input[type="range"],
+  .setting-group input[type="number"] {
+    accent-color: #e94560;
+  }
+
+  .setting-group input[type="number"] {
+    background: #0f3460;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #e0e0e0;
+    padding: 6px 8px;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  .setting-group select {
+    background: #0f3460;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #e0e0e0;
+    padding: 6px 8px;
+    font-size: 0.9rem;
+  }
+
+  .range-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .range-row input[type="range"] {
+    flex: 1;
+  }
+
+  .range-value {
+    font-size: 0.85rem;
+    color: #e94560;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    accent-color: #e94560;
+    width: 16px;
+    height: 16px;
+  }
+
+  .checkbox-row label {
+    font-size: 0.9rem;
+    color: #e0e0e0;
+    cursor: pointer;
+  }
+
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    background: #e94560;
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    background: #ff6b81;
+  }
+
+  .btn-primary:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: #0f3460;
+    color: #e0e0e0;
+    border: 1px solid #333;
+  }
+
+  .btn-secondary:hover {
+    background: #16213e;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #16213e;
+    border-radius: 3px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-bar.active {
+    display: block;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e94560, #ff6b81);
+    border-radius: 3px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  .status {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 12px;
+    min-height: 1.2em;
+  }
+
+  .audio-player {
+    width: 100%;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .audio-player.active {
+    display: block;
+  }
+
+  .audio-player audio {
+    width: 100%;
+  }
+
+  .waveform-container {
+    position: relative;
+    width: 100%;
+    height: 120px;
+    background: #0f3460;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    display: none;
+  }
+
+  .waveform-container.active {
+    display: block;
+  }
+
+  .waveform-container canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+
+  .results-table th,
+  .results-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #222;
+    font-size: 0.9rem;
+  }
+
+  .results-table th {
+    background: #16213e;
+    color: #e94560;
+    position: sticky;
+    top: 0;
+    font-weight: 600;
+  }
+
+  .results-table tr:hover {
+    background: rgba(233, 69, 96, 0.08);
+  }
+
+  .results-table .timestamp {
+    color: #e94560;
+    font-family: 'Consolas', 'Courier New', monospace;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .results-table .timestamp:hover {
+    text-decoration: underline;
+  }
+
+  .results-table .duration {
+    color: #888;
+    font-family: 'Consolas', 'Courier New', monospace;
+    white-space: nowrap;
+  }
+
+  .results-table .text-cell {
+    max-width: 400px;
+    word-break: break-word;
+  }
+
+  .results-wrapper {
+    max-height: 500px;
+    overflow-y: auto;
+    border-radius: 10px;
+    border: 1px solid #222;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .results-wrapper.active {
+    display: block;
+  }
+
+  .results-wrapper::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .results-wrapper::-webkit-scrollbar-track {
+    background: #16213e;
+  }
+
+  .results-wrapper::-webkit-scrollbar-thumb {
+    background: #e94560;
+    border-radius: 3px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .badge-pending {
+    background: #333;
+    color: #888;
+  }
+
+  .badge-done {
+    background: rgba(46, 213, 115, 0.15);
+    color: #2ed573;
+  }
+
+  .badge-error {
+    background: rgba(233, 69, 96, 0.15);
+    color: #e94560;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #555;
+  }
+
+  .sr-notice {
+    font-size: 0.78rem;
+    color: #666;
+    background: #16213e;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    display: none;
+    line-height: 1.5;
+  }
+
+  .sr-notice.active {
+    display: block;
+  }
+
+  .playing-row {
+    background: rgba(233, 69, 96, 0.15) !important;
+  }
+</style>
+</head>
+<body>
+
+<h1>音声セリフ抽出ツール</h1>
+<p class="subtitle">音声ファイルからセリフ区間を検出し、タイムスタンプ付きで一覧表示します</p>
+
+<div class="container">
+  <div class="upload-area" id="uploadArea">
+    <input type="file" id="fileInput" accept="audio/*">
+    <div class="upload-icon">🎙️</div>
+    <div class="upload-text"><strong>音声ファイルをドロップ</strong>またはクリックして選択</div>
+    <div class="upload-text" style="font-size:0.8rem; margin-top:6px; color:#666;">WAV / MP3 / OGG / M4A / FLAC 対応</div>
+  </div>
+
+  <div class="settings">
+    <div class="setting-group">
+      <label>無音しきい値（dB）</label>
+      <div class="range-row">
+        <input type="range" id="silenceThreshold" min="-80" max="-20" value="-40" step="1">
+        <span class="range-value" id="silenceThresholdVal">-40dB</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>最小無音長（秒）</label>
+      <input type="number" id="minSilenceDuration" value="0.5" min="0.1" max="5" step="0.1">
+    </div>
+    <div class="setting-group">
+      <label>最小セリフ長（秒）</label>
+      <input type="number" id="minSpeechDuration" value="0.2" min="0.05" max="3" step="0.05">
+    </div>
+    <div class="setting-group">
+      <div class="checkbox-row" style="margin-top: 16px;">
+        <input type="checkbox" id="enableSR">
+        <label for="enableSR">音声認識で文字起こし</label>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>認識言語</label>
+      <select id="srLang">
+        <option value="ja-JP" selected>日本語</option>
+        <option value="en-US">English</option>
+        <option value="zh-CN">中文</option>
+        <option value="ko-KR">한국어</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="sr-notice" id="srNotice">
+    💡 音声認識はブラウザの Web Speech API を使用します（Chrome推奨）。初回のみマイク許可を求められます。認識精度はブラウザ・環境に依存します。<br>
+    ⚠️ <strong>マイク許可ポップアップが毎回表示される場合：</strong>ローカルファイル（file://）で開いている場合、ブラウザは許可を記憶できません。ローカルサーバー経由（例：<code>python -m http.server 8000</code>）で <code>http://localhost:8000</code> からアクセスすると許可が永続化されます。
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="analyzeBtn" disabled>解析開始</button>
+    <button class="btn btn-secondary" id="exportCsvBtn" style="display:none;">CSV出力</button>
+    <button class="btn btn-secondary" id="exportTxtBtn" style="display:none;">テキスト出力</button>
+    <button class="btn btn-secondary" id="clearBtn" style="display:none;">クリア</button>
+  </div>
+
+  <div class="progress-bar" id="progressBar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="audio-player" id="audioPlayer">
+    <audio id="audio" controls></audio>
+  </div>
+
+  <div class="waveform-container" id="waveformContainer">
+    <canvas id="waveformCanvas"></canvas>
+  </div>
+
+  <div class="results-wrapper" id="resultsWrapper">
+    <table class="results-table" id="resultsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>開始</th>
+          <th>終了</th>
+          <th>長さ</th>
+          <th>テキスト</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function() {
+  // Elements
+  const fileInput = document.getElementById('fileInput');
+  const uploadArea = document.getElementById('uploadArea');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  const exportTxtBtn = document.getElementById('exportTxtBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const progressBar = document.getElementById('progressBar');
+  const progressFill = document.getElementById('progressFill');
+  const statusEl = document.getElementById('status');
+  const audioPlayer = document.getElementById('audioPlayer');
+  const audio = document.getElementById('audio');
+  const waveformContainer = document.getElementById('waveformContainer');
+  const waveformCanvas = document.getElementById('waveformCanvas');
+  const resultsWrapper = document.getElementById('resultsWrapper');
+  const resultsBody = document.getElementById('resultsBody');
+  const silenceThreshold = document.getElementById('silenceThreshold');
+  const silenceThresholdVal = document.getElementById('silenceThresholdVal');
+  const minSilenceDuration = document.getElementById('minSilenceDuration');
+  const minSpeechDuration = document.getElementById('minSpeechDuration');
+  const enableSR = document.getElementById('enableSR');
+  const srLang = document.getElementById('srLang');
+  const srNotice = document.getElementById('srNotice');
+
+  let audioBuffer = null;
+  let audioFile = null;
+  let segments = [];
+  let audioContext = null;
+  let persistentMicStream = null; // マイクストリームをページレベルで保持し、許可ポップアップを防止
+  let persistentRecognition = null; // SpeechRecognitionインスタンスをページレベルで保持し、許可ポップアップを防止
+
+  // file:// プロトコルの場合、マイク許可が永続化されない旨を警告
+  if (window.location.protocol === 'file:') {
+    const fileWarning = document.createElement('div');
+    fileWarning.style.cssText = 'background:#3d2e00;color:#ffd54f;padding:10px 16px;border-radius:8px;margin:0 auto 12px;max-width:700px;font-size:13px;text-align:center;';
+    fileWarning.innerHTML = '⚠️ ローカルファイル（file://）で開いているため、マイク許可が毎回リセットされます。<br><code>python -m http.server 8000</code> → <code>http://localhost:8000</code> でアクセスすると許可が永続化されます。';
+    const container = document.querySelector('.container');
+    if (container) container.insertBefore(fileWarning, container.firstChild);
+  }
+
+  // Threshold display
+  silenceThreshold.addEventListener('input', () => {
+    silenceThresholdVal.textContent = silenceThreshold.value + 'dB';
+  });
+
+  // SR checkbox — チェック時にマイク許可を事前取得し、SpeechRecognitionインスタンスも初期化
+  enableSR.addEventListener('change', async () => {
+    srNotice.classList.toggle('active', enableSR.checked);
+    if (enableSR.checked) {
+      if (!persistentMicStream || persistentMicStream.getTracks().every(t => t.readyState === 'ended')) {
+        try {
+          persistentMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+          console.warn('マイク許可の事前取得に失敗:', err);
+        }
+      }
+      // SpeechRecognitionインスタンスを事前に生成（ブラウザが許可状態をキャッシュ）
+      if (!persistentRecognition) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          persistentRecognition = new SpeechRecognition();
+          persistentRecognition.interimResults = false;
+          persistentRecognition.maxAlternatives = 1;
+          persistentRecognition.continuous = false;
+        }
+      }
+      // Permissions API の変化を監視
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          const permStatus = await navigator.permissions.query({ name: 'microphone' });
+          permStatus.onchange = () => {
+            if (permStatus.state === 'denied') {
+              console.warn('マイク許可が取り消されました。');
+              if (persistentMicStream) {
+                persistentMicStream.getTracks().forEach(t => t.stop());
+                persistentMicStream = null;
+              }
+            }
+          };
+        }
+      } catch (e) { /* Permissions API 非対応 */ }
+    } else {
+      // チェックボックスOFF時：マイクストリームとRecognitionインスタンスを解放
+      if (persistentMicStream) {
+        persistentMicStream.getTracks().forEach(t => t.stop());
+        persistentMicStream = null;
+      }
+      persistentRecognition = null;
+    }
+  });
+
+  // ページ離脱時にマイクストリームとRecognitionインスタンスを解放
+  window.addEventListener('beforeunload', () => {
+    if (persistentMicStream) {
+      persistentMicStream.getTracks().forEach(track => track.stop());
+      persistentMicStream = null;
+    }
+    if (persistentRecognition) {
+      try { persistentRecognition.stop(); } catch (e) { /* already stopped */ }
+      persistentRecognition = null;
+    }
+  });
+
+  // Drag and drop
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+  });
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      handleFile(fileInput.files[0]);
+    }
+  });
+
+  async function handleFile(file) {
+    audioFile = file;
+    statusEl.textContent = `ファイル読み込み中: ${file.name}`;
+
+    const url = URL.createObjectURL(file);
+    audio.src = url;
+    audioPlayer.classList.add('active');
+
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuffer = await file.arrayBuffer();
+      audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      statusEl.textContent = `読み込み完了: ${file.name} (${formatTime(audioBuffer.duration)})`;
+      analyzeBtn.disabled = false;
+      drawWaveform();
+    } catch (err) {
+      statusEl.textContent = 'エラー: 音声ファイルを読み込めませんでした';
+      console.error(err);
+    }
+  }
+
+  function drawWaveform() {
+    if (!audioBuffer) return;
+    waveformContainer.classList.add('active');
+
+    const canvas = waveformCanvas;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = waveformContainer.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const width = rect.width;
+    const height = rect.height;
+    const data = audioBuffer.getChannelData(0);
+    const step = Math.ceil(data.length / width);
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw waveform
+    ctx.fillStyle = '#e94560';
+    const mid = height / 2;
+    for (let i = 0; i < width; i++) {
+      let min = 1.0, max = -1.0;
+      for (let j = 0; j < step; j++) {
+        const val = data[i * step + j] || 0;
+        if (val < min) min = val;
+        if (val > max) max = val;
+      }
+      const top = mid + min * mid;
+      const h = (max - min) * mid;
+      ctx.fillRect(i, top, 1, Math.max(h, 0.5));
+    }
+  }
+
+  function drawSegmentsOnWaveform() {
+    if (!audioBuffer || segments.length === 0) return;
+
+    const canvas = waveformCanvas;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = waveformContainer.getBoundingClientRect();
+    const ctx = canvas.getContext('2d');
+    const width = rect.width;
+    const height = rect.height;
+    const duration = audioBuffer.duration;
+
+    // Redraw waveform first
+    drawWaveform();
+
+    // Overlay segments
+    ctx.fillStyle = 'rgba(233, 69, 96, 0.15)';
+    for (const seg of segments) {
+      const x = (seg.start / duration) * width;
+      const w = ((seg.end - seg.start) / duration) * width;
+      ctx.fillRect(x, 0, w, height);
+    }
+  }
+
+  // Click on waveform to seek
+  waveformContainer.addEventListener('click', (e) => {
+    if (!audioBuffer) return;
+    const rect = waveformContainer.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = ratio * audioBuffer.duration;
+    audio.play();
+  });
+
+  analyzeBtn.addEventListener('click', startAnalysis);
+
+  async function startAnalysis() {
+    if (!audioBuffer) return;
+
+    analyzeBtn.disabled = true;
+    progressBar.classList.add('active');
+    progressFill.style.width = '0%';
+    resultsBody.innerHTML = '';
+    segments = [];
+
+    statusEl.textContent = '無音区間を解析中...';
+
+    // Perform silence detection
+    await new Promise(r => setTimeout(r, 50)); // Let UI update
+    segments = detectSpeechSegments();
+
+    progressFill.style.width = '50%';
+    statusEl.textContent = `${segments.length} 個のセリフ区間を検出しました`;
+
+    if (enableSR.checked && segments.length > 0) {
+      statusEl.textContent = '音声認識中...';
+      await recognizeSegments();
+    }
+
+    progressFill.style.width = '100%';
+    renderResults();
+    drawSegmentsOnWaveform();
+
+    exportCsvBtn.style.display = '';
+    exportTxtBtn.style.display = '';
+    clearBtn.style.display = '';
+    analyzeBtn.disabled = false;
+
+    statusEl.textContent = `完了: ${segments.length} 個のセリフ区間を検出`;
+    setTimeout(() => { progressBar.classList.remove('active'); }, 1000);
+  }
+
+  function detectSpeechSegments() {
+    const thresholdDb = parseFloat(silenceThreshold.value);
+    const thresholdLinear = Math.pow(10, thresholdDb / 20);
+    const minSilence = parseFloat(minSilenceDuration.value);
+    const minSpeech = parseFloat(minSpeechDuration.value);
+
+    // Mix to mono
+    const sampleRate = audioBuffer.sampleRate;
+    const length = audioBuffer.length;
+    const mono = new Float32Array(length);
+
+    for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+      const channelData = audioBuffer.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        mono[i] += channelData[i];
+      }
+    }
+    const numChannels = audioBuffer.numberOfChannels;
+    for (let i = 0; i < length; i++) {
+      mono[i] /= numChannels;
+    }
+
+    // Compute RMS in small frames
+    const frameSize = Math.floor(sampleRate * 0.02); // 20ms frames
+    const hopSize = Math.floor(sampleRate * 0.01);   // 10ms hop
+    const numFrames = Math.floor((length - frameSize) / hopSize) + 1;
+
+    const isSpeech = new Uint8Array(numFrames);
+
+    for (let f = 0; f < numFrames; f++) {
+      const start = f * hopSize;
+      let sum = 0;
+      for (let i = 0; i < frameSize; i++) {
+        const val = mono[start + i] || 0;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / frameSize);
+      isSpeech[f] = rms > thresholdLinear ? 1 : 0;
+    }
+
+    // Merge speech frames into segments
+    const result = [];
+    let inSpeech = false;
+    let segStart = 0;
+    let silenceStart = 0;
+    const minSilenceFrames = Math.ceil(minSilence / 0.01);
+
+    for (let f = 0; f < numFrames; f++) {
+      if (isSpeech[f]) {
+        if (!inSpeech) {
+          segStart = f;
+          inSpeech = true;
+        }
+        silenceStart = f + 1;
+      } else {
+        if (inSpeech && (f - silenceStart) >= minSilenceFrames) {
+          const startTime = segStart * 0.01;
+          const endTime = silenceStart * 0.01;
+          if ((endTime - startTime) >= minSpeech) {
+            result.push({ start: startTime, end: endTime, text: '' });
+          }
+          inSpeech = false;
+        }
+      }
+    }
+
+    // Handle last segment
+    if (inSpeech) {
+      const startTime = segStart * 0.01;
+      const endTime = (numFrames - 1) * 0.01;
+      if ((endTime - startTime) >= minSpeech) {
+        result.push({ start: startTime, end: endTime, text: '' });
+      }
+    }
+
+    return result;
+  }
+
+  async function recognizeSegments() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      statusEl.textContent = 'このブラウザは音声認識に対応していません（Chrome推奨）';
+      return;
+    }
+
+    // マイク許可を事前に取得し、ページレベルで保持して許可ポップアップを防止
+    if (!persistentMicStream || persistentMicStream.getTracks().every(t => t.readyState === 'ended')) {
+      try {
+        persistentMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        console.warn('マイク許可が拒否されました。音声認識を続行しますが、許可ポップアップが表示される場合があります。', err);
+      }
+    }
+
+    const lang = srLang.value;
+
+    // セグメントごとに新しいSpeechRecognitionインスタンスを作るとブラウザが
+    // 毎回許可を求める場合がある。ページレベルの単一インスタンスを再利用する。
+    if (!persistentRecognition) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      persistentRecognition = new SpeechRecognition();
+      persistentRecognition.interimResults = false;
+      persistentRecognition.maxAlternatives = 1;
+      persistentRecognition.continuous = false;
+    }
+    persistentRecognition.lang = lang;
+
+    try {
+      for (let i = 0; i < segments.length; i++) {
+        statusEl.textContent = `音声認識中... (${i + 1}/${segments.length})`;
+        progressFill.style.width = (50 + (i / segments.length) * 45) + '%';
+
+        try {
+          segments[i].text = await recognizeSegment(segments[i], lang);
+        } catch (err) {
+          console.warn('Recognition failed for segment', i, err);
+          segments[i].text = '(認識失敗)';
+        }
+
+        // セグメント間の待機（短すぎるとブラウザが追いつかず再許可を求める場合がある）
+        await new Promise(r => setTimeout(r, 300));
+      }
+    } finally {
+      // マイクストリームとRecognitionインスタンスはページレベルで保持し続ける
+      // （許可ポップアップ再発防止）ページ離脱時に自動的に解放される
+    }
+  }
+
+  function recognizeSegment(segment, lang) {
+    return new Promise((resolve, reject) => {
+      const startSample = Math.floor(segment.start * audioBuffer.sampleRate);
+      const endSample = Math.floor(segment.end * audioBuffer.sampleRate);
+      const segLength = endSample - startSample;
+
+      if (segLength <= 0) {
+        resolve('');
+        return;
+      }
+
+      // Create a buffer for this segment
+      const segBuffer = audioContext.createBuffer(
+        audioBuffer.numberOfChannels,
+        segLength,
+        audioBuffer.sampleRate
+      );
+
+      for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+        const src = audioBuffer.getChannelData(ch);
+        const dst = segBuffer.getChannelData(ch);
+        for (let i = 0; i < segLength; i++) {
+          dst[i] = src[startSample + i] || 0;
+        }
+      }
+
+      // Convert to WAV blob for playback via MediaStream
+      const wavBlob = bufferToWav(segBuffer);
+      const wavUrl = URL.createObjectURL(wavBlob);
+
+      const segAudio = new Audio(wavUrl);
+      segAudio.volume = 0.01; // Nearly muted
+
+      // ページレベルのSpeechRecognitionインスタンスを再利用（許可ポップアップ防止）
+      const recognition = persistentRecognition;
+      recognition.lang = lang;
+
+      let resolved = false;
+
+      // 前回のイベントハンドラをクリア
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          try { recognition.stop(); } catch (e) { /* already stopped */ }
+          segAudio.pause();
+          URL.revokeObjectURL(wavUrl);
+          resolve('');
+        }
+      }, Math.max((segment.end - segment.start) * 1000 + 5000, 8000));
+
+      recognition.onresult = (e) => {
+        if (!resolved && e.results.length > 0) {
+          resolved = true;
+          clearTimeout(timeout);
+          segAudio.pause();
+          URL.revokeObjectURL(wavUrl);
+          resolve(e.results[0][0].transcript);
+        }
+      };
+
+      recognition.onerror = (e) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          segAudio.pause();
+          URL.revokeObjectURL(wavUrl);
+          if (e.error === 'no-speech') {
+            resolve('(無音)');
+          } else {
+            resolve('(認識失敗)');
+          }
+        }
+      };
+
+      recognition.onend = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          segAudio.pause();
+          URL.revokeObjectURL(wavUrl);
+          resolve('');
+        }
+      };
+
+      segAudio.play().then(() => {
+        recognition.start();
+      }).catch(() => {
+        URL.revokeObjectURL(wavUrl);
+        resolve('(再生失敗)');
+      });
+    });
+  }
+
+  function bufferToWav(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const length = buffer.length;
+    const bytesPerSample = 2;
+    const blockAlign = numChannels * bytesPerSample;
+    const dataSize = length * blockAlign;
+    const headerSize = 44;
+    const arrayBuffer = new ArrayBuffer(headerSize + dataSize);
+    const view = new DataView(arrayBuffer);
+
+    function writeString(offset, str) {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    }
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bytesPerSample * 8, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    const channels = [];
+    for (let ch = 0; ch < numChannels; ch++) {
+      channels.push(buffer.getChannelData(ch));
+    }
+
+    for (let i = 0; i < length; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
+  function renderResults() {
+    resultsBody.innerHTML = '';
+    if (segments.length === 0) {
+      resultsWrapper.classList.remove('active');
+      return;
+    }
+
+    resultsWrapper.classList.add('active');
+
+    segments.forEach((seg, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td class="timestamp" data-time="${seg.start}" title="クリックで再生">${formatTime(seg.start)}</td>
+        <td class="timestamp" data-time="${seg.start}" title="クリックで再生">${formatTime(seg.end)}</td>
+        <td class="duration">${(seg.end - seg.start).toFixed(2)}s</td>
+        <td class="text-cell">${seg.text ? escapeHtml(seg.text) : '<span style="color:#555">—</span>'}</td>
+      `;
+
+      // Click timestamp to play
+      tr.querySelectorAll('.timestamp').forEach(td => {
+        td.addEventListener('click', () => {
+          audio.currentTime = parseFloat(td.dataset.time);
+          audio.play();
+
+          document.querySelectorAll('.playing-row').forEach(el => el.classList.remove('playing-row'));
+          tr.classList.add('playing-row');
+        });
+      });
+
+      resultsBody.appendChild(tr);
+    });
+  }
+
+  // Export CSV
+  exportCsvBtn.addEventListener('click', () => {
+    if (segments.length === 0) return;
+
+    const bom = '\uFEFF';
+    let csv = bom + '#,開始,終了,長さ(秒),テキスト\n';
+    segments.forEach((seg, i) => {
+      const text = seg.text ? '"' + seg.text.replace(/"/g, '""') + '"' : '';
+      csv += `${i + 1},${formatTime(seg.start)},${formatTime(seg.end)},${(seg.end - seg.start).toFixed(2)},${text}\n`;
+    });
+
+    downloadFile(csv, getExportFilename('csv'), 'text/csv;charset=utf-8');
+  });
+
+  // Export text
+  exportTxtBtn.addEventListener('click', () => {
+    if (segments.length === 0) return;
+
+    let txt = '';
+    segments.forEach((seg, i) => {
+      txt += `[${formatTime(seg.start)} - ${formatTime(seg.end)}] `;
+      txt += seg.text ? seg.text : `(セリフ${i + 1})`;
+      txt += '\n';
+    });
+
+    downloadFile(txt, getExportFilename('txt'), 'text/plain;charset=utf-8');
+  });
+
+  // Clear
+  clearBtn.addEventListener('click', () => {
+    segments = [];
+    audioBuffer = null;
+    audioFile = null;
+    audio.src = '';
+    audioPlayer.classList.remove('active');
+    waveformContainer.classList.remove('active');
+    resultsWrapper.classList.remove('active');
+    exportCsvBtn.style.display = 'none';
+    exportTxtBtn.style.display = 'none';
+    clearBtn.style.display = 'none';
+    analyzeBtn.disabled = true;
+    statusEl.textContent = '';
+    fileInput.value = '';
+  });
+
+  // Helpers
+  function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 100);
+
+    if (h > 0) {
+      return `${h}:${pad(m)}:${pad(s)}.${pad(ms)}`;
+    }
+    return `${pad(m)}:${pad(s)}.${pad(ms)}`;
+  }
+
+  function pad(n) {
+    return n.toString().padStart(2, '0');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function getExportFilename(ext) {
+    const base = audioFile ? audioFile.name.replace(/\.[^.]+$/, '') : 'speech';
+    return `${base}_セリフ抽出.${ext}`;
+  }
+
+  function downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Resize waveform on window resize
+  window.addEventListener('resize', () => {
+    if (audioBuffer) {
+      if (segments.length > 0) {
+        drawSegmentsOnWaveform();
+      } else {
+        drawWaveform();
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
