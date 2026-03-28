@@ -124,7 +124,7 @@ ipcMain.handle('dialog:openFolder', async () => {
   const csvExts    = new Set(['.csv', '.txt']);
 
   let entries = [];
-  try { entries = fs.readdirSync(folderPath); } catch (_) {}
+  try { entries = await fs.promises.readdir(folderPath); } catch (_) {}
 
   return {
     path: folderPath,
@@ -138,17 +138,17 @@ ipcMain.handle('dialog:openFolder', async () => {
 });
 
 ipcMain.handle('fs:readText', async (_e, filePath) => {
-  return fs.readFileSync(filePath, 'utf-8');
+  return fs.promises.readFile(filePath, 'utf-8');
 });
 
 ipcMain.handle('fs:readBinary', async (_e, filePath) => {
-  const buf = fs.readFileSync(filePath);
+  const buf = await fs.promises.readFile(filePath);
   // Return as plain Uint8Array so contextBridge can clone it
   return new Uint8Array(buf);
 });
 
 ipcMain.handle('fs:writeText', async (_e, filePath, content) => {
-  fs.writeFileSync(filePath, content, 'utf-8');
+  await fs.promises.writeFile(filePath, content, 'utf-8');
   return true;
 });
 

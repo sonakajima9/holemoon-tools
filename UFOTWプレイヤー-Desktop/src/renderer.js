@@ -15,12 +15,19 @@ let connectedServiceUUID = null;
 let connectedCharUUID = null;
 
 const KNOWN_SERVICE_UUIDS = [
-  '0000fff0-0000-1000-8000-00805f9b34fb',
-  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-  '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '40ee1111-63ec-4b7f-8ce7-712efd55b90e', // ★ Vorze UFO TW / UFO SA / A10 Cyclone SA / Piston (正式UUID)
+  '0000fff0-0000-1000-8000-00805f9b34fb', // 汎用BLE制御（多数の玩具）
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART Service (NUS)
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Microchip BM70
+  '0000ffe0-0000-1000-8000-00805f9b34fb', // HM-10 BLE Serial
   '0000ff00-0000-1000-8000-00805f9b34fb',
   '0000ab00-0000-1000-8000-00805f9b34fb',
+  '0000ffd0-0000-1000-8000-00805f9b34fb',
+  '0000ffc0-0000-1000-8000-00805f9b34fb',
+  '0000fee7-0000-1000-8000-00805f9b34fb',
+  '0000fee9-0000-1000-8000-00805f9b34fb',
+  'd0611e78-bbb4-4591-a5f8-487910ae4366', // Lovense 新型
+  'f0006900-0451-4000-b000-000000000000', // Lelo / 汎用
 ];
 
 let audioEl = null;
@@ -98,29 +105,62 @@ function connectGattWithTimeout(gatt, ms = 10000) {
   ]);
 }
 
+// カスタムUUID入力欄を読む
+function getCustomUUIDs() {
+  const svc  = (document.getElementById('customServiceUUID')?.value  || '').trim().toLowerCase();
+  const char = (document.getElementById('customCharUUID')?.value     || '').trim().toLowerCase();
+  return { customSvcUUID: svc || null, customCharUUID: char || null };
+}
+
 // サービスをスキャンして書き込み可能な最初のキャラクタリスティックを返す
+// 戻り値: { serviceUUID, charUUID, characteristic } | null
+// 失敗時の診断用に { _diag: { serviceCount, charCount } } を追加で返す
 async function findWritableCharacteristic(server) {
+  const { customSvcUUID, customCharUUID } = getCustomUUIDs();
+
+  // --- カスタムUUIDが両方指定されている場合は直接取得 ---
+  if (customSvcUUID && customCharUUID) {
+    try {
+      const svc  = await server.getPrimaryService(customSvcUUID);
+      const char = await svc.getCharacteristic(customCharUUID);
+      if (char.properties.write || char.properties.writeWithoutResponse) {
+        return { serviceUUID: svc.uuid, charUUID: char.uuid, characteristic: char };
+      }
+    } catch (_) {}
+  }
+
+  // --- 自動スキャン ---
   let services = [];
   try {
     services = await server.getPrimaryServices();
-  } catch (_) {
-    for (const uuid of KNOWN_SERVICE_UUIDS) {
+  } catch (_) {}
+
+  // getPrimaryServices() が空配列を返した場合もフォールバックを試みる
+  if (services.length === 0) {
+    const candidates = customSvcUUID
+      ? [customSvcUUID, ...KNOWN_SERVICE_UUIDS]
+      : KNOWN_SERVICE_UUIDS;
+    for (const uuid of candidates) {
       try {
         services.push(await server.getPrimaryService(uuid));
       } catch (_) {}
     }
   }
 
+  let totalCharCount = 0;
   for (const service of services) {
     let chars;
     try { chars = await service.getCharacteristics(); } catch (_) { continue; }
+    totalCharCount += chars.length;
     for (const char of chars) {
       if (char.properties.write || char.properties.writeWithoutResponse) {
         return { serviceUUID: service.uuid, charUUID: char.uuid, characteristic: char };
       }
     }
   }
-  return null;
+
+  // 見つからなかった場合は診断情報を付けて null を返す
+  return { _notFound: true, _diag: { serviceCount: services.length, charCount: totalCharCount } };
 }
 
 async function connectBluetooth() {
@@ -133,11 +173,16 @@ async function connectBluetooth() {
   setBtStatus('connecting', '接続中...');
   document.getElementById('btConnectBtn').disabled = true;
   try {
+    const { customSvcUUID } = getCustomUUIDs();
+    const optionalServices = customSvcUUID
+      ? [customSvcUUID, ...KNOWN_SERVICE_UUIDS]
+      : KNOWN_SERVICE_UUIDS;
+
     const filters = nameFilter ? [{ namePrefix: nameFilter }] : undefined;
     const device = await navigator.bluetooth.requestDevice({
       filters,
       acceptAllDevices: !nameFilter,
-      optionalServices: KNOWN_SERVICE_UUIDS
+      optionalServices,
     });
 
     device.removeEventListener('gattserverdisconnected', onBtDisconnected);
@@ -147,11 +192,18 @@ async function connectBluetooth() {
     const server = await connectGattWithTimeout(device.gatt);
     const found  = await findWritableCharacteristic(server);
 
-    if (!found) {
+    if (!found || found._notFound) {
       server.disconnect();
       document.getElementById('btConnectBtn').disabled = false;
-      setBtStatus('error', '接続失敗: 書き込み可能なキャラクタリスティックが見つかりませんでした');
-      showToast('書き込み可能なキャラクタリスティックが見つかりませんでした', true);
+      const diag = found?._diag;
+      const diagMsg = diag
+        ? `（検出: サービス ${diag.serviceCount} 件 / キャラクタリスティック ${diag.charCount} 件）`
+        : '';
+      const hint = diag?.serviceCount > 0
+        ? ' 詳細設定でサービスUUID・キャラクタリスティックUUIDを手動指定してください。'
+        : ' UFOTWのサービスUUIDが未登録の可能性があります。詳細設定で手動指定してください。';
+      setBtStatus('error', `接続失敗: 書き込み可能なキャラクタリスティックが見つかりませんでした${diagMsg}`);
+      showToast(`キャラクタリスティックが見つかりません${diagMsg}${hint}`, true);
       return;
     }
 
@@ -242,7 +294,7 @@ async function attemptReconnect() {
     if (!found) {
       found = await findWritableCharacteristic(server);
     }
-    if (!found) throw new Error('キャラクタリスティック取得失敗');
+    if (!found || found._notFound) throw new Error('キャラクタリスティック取得失敗');
 
     gattCharacteristic = found.characteristic;
     isConnected = true;
@@ -394,9 +446,10 @@ function getValuesAtTime(t) {
     return null;
   }
 
-  let lo = 0;
-  for (let i = 0; i < csvRows.length - 1; i++) {
-    if (csvRows[i].time <= t && csvRows[i + 1].time > t) { lo = i; break; }
+  let lo = 0, hi = csvRows.length - 2;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (csvRows[mid].time <= t) lo = mid; else hi = mid - 1;
   }
   const prev = csvRows[lo];
   const next = csvRows[lo + 1];
@@ -455,9 +508,14 @@ function applyAudioTrack(file) {
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
   const reader = new FileReader();
   reader.onload = async e => {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
-    drawWaveform(decoded);
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
+      drawWaveform(decoded);
+    } catch (err) {
+      drawWaveformEmpty();
+      showToast(`波形生成失敗: ${err.message}`, true);
+    }
   };
   reader.readAsArrayBuffer(file);
 
@@ -825,9 +883,14 @@ async function applyAudioFromPath(audioPath, audioName) {
     document.getElementById('stopBtn').disabled  = false;
 
     if (audioCtx) { audioCtx.close(); audioCtx = null; }
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-    drawWaveform(decoded);
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+      drawWaveform(decoded);
+    } catch (decErr) {
+      drawWaveformEmpty();
+      showToast(`波形生成失敗: ${decErr.message}`, true);
+    }
 
     showToast(`音声: ${audioName}`);
   } catch (err) {
@@ -882,6 +945,18 @@ async function openWorkFolder() {
   updateWorkLinkUI();
 }
 
+// ファイル名（拡張子なし）を返す
+function stemName(filename) {
+  return filename.replace(/\.[^.]+$/, '');
+}
+
+// 音声ファイル名に一致するCSVを候補から探す
+function findMatchingCsv(audioFile) {
+  if (!currentWork) return null;
+  const stem = stemName(audioFile.name).toLowerCase();
+  return currentWork.csvFiles.find(c => stemName(c.name).toLowerCase() === stem) || null;
+}
+
 function renderWorkAudioList() {
   const list = document.getElementById('workAudioList');
   list.innerHTML = '';
@@ -896,12 +971,37 @@ function renderWorkAudioList() {
     const item = document.createElement('div');
     item.className = 'work-file-item';
     if (selectedWorkAudio?.path === file.path) item.classList.add('selected-audio');
-    item.textContent = file.name;
-    item.title       = file.path;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = file.name;
+
+    const matchedCsv = findMatchingCsv(file);
+    if (matchedCsv) {
+      const badge = document.createElement('span');
+      badge.className   = 'csv-match-badge';
+      badge.textContent = '📊';
+      badge.title       = `対応CSV: ${matchedCsv.name}`;
+      item.appendChild(nameSpan);
+      item.appendChild(badge);
+    } else {
+      item.appendChild(nameSpan);
+    }
+
+    item.title = file.path;
     item.addEventListener('click', () => {
       selectedWorkAudio = file;
+      // 同名CSVを自動選択
+      const auto = findMatchingCsv(file);
+      if (auto) selectedWorkCsv = auto;
       renderWorkAudioList();
+      renderWorkCsvList();
       updateWorkLinkUI();
+    });
+    item.addEventListener('dblclick', () => {
+      selectedWorkAudio = file;
+      const auto = findMatchingCsv(file);
+      if (auto) selectedWorkCsv = auto;
+      previewLinkedTrack();
     });
     list.appendChild(item);
   });
