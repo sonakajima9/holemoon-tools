@@ -181,6 +181,25 @@ h2 {
   border-radius: 6px;
   background: #0a0f1e;
   display: block;
+  cursor: pointer;
+}
+
+/* --- Canvas playhead overlay --- */
+.canvas-wrap {
+  position: relative;
+  margin-bottom: 0;
+}
+
+.canvas-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+  left: 0%;
+  transform: translateX(-1px);
+  border-radius: 1px;
 }
 
 /* --- Playback Controls --- */
@@ -387,6 +406,12 @@ details summary::-webkit-details-marker { color: #e94560; }
     <button class="btn btn-danger" id="btDisconnectBtn" onclick="disconnectBluetooth()" disabled>切断</button>
     <button class="btn btn-secondary" onclick="testCommand()">テスト送信</button>
   </div>
+  <div class="form-group" style="margin-top:8px;">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="btAutoReconnect" checked>
+      切断時に自動再接続する（最大5回、指数バックオフ）
+    </label>
+  </div>
 </div>
 
 <!-- ===== File Load Panel ===== -->
@@ -413,14 +438,20 @@ details summary::-webkit-details-marker { color: #e94560; }
 <!-- ===== Pattern Preview ===== -->
 <div class="panel" id="patternPanel" style="display:none">
   <h2>パターンプレビュー</h2>
-  <canvas id="patternCanvas"></canvas>
+  <div class="canvas-wrap">
+    <canvas id="patternCanvas"></canvas>
+    <div class="canvas-playhead" id="patternPlayhead"></div>
+  </div>
   <div class="csv-info" id="csvInfo"></div>
 </div>
 
 <!-- ===== Playback Panel ===== -->
 <div class="panel">
   <h2>再生</h2>
-  <canvas id="waveformCanvas"></canvas>
+  <div class="canvas-wrap">
+    <canvas id="waveformCanvas"></canvas>
+    <div class="canvas-playhead" id="waveformPlayhead"></div>
+  </div>
   <div class="playback-bar" id="playbackBar" onclick="seekAudio(event)">
     <div class="playback-fill" id="playbackFill"></div>
   </div>
@@ -512,6 +543,11 @@ details summary::-webkit-details-marker { color: #e94560; }
 let bluetoothDevice = null;
 let gattCharacteristic = null;
 let isConnected = false;
+let isUserDisconnected = false;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BASE_DELAY = 2000;
 
 let audioEl = null;
 let audioCtx = null;
@@ -539,6 +575,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   audioEl.addEventListener('timeupdate', onTimeUpdate);
   audioEl.addEventListener('ended', onAudioEnded);
+
+  document.getElementById('waveformCanvas').addEventListener('click', seekFromWaveform);
+  document.getElementById('patternCanvas').addEventListener('click', seekFromPattern);
 
   drawWaveformEmpty();
 });
@@ -577,6 +616,8 @@ async function connectBluetooth() {
       optionalServices: [serviceUUID]
     });
 
+    // 重複登録を防ぐため、一度削除してから追加する
+    bluetoothDevice.removeEventListener('gattserverdisconnected', onBtDisconnected);
     bluetoothDevice.addEventListener('gattserverdisconnected', onBtDisconnected);
 
     const server  = await bluetoothDevice.gatt.connect();
@@ -595,19 +636,69 @@ async function connectBluetooth() {
 }
 
 function disconnectBluetooth() {
+  isUserDisconnected = true;
+  reconnectAttempts = 0;
+  clearTimeout(reconnectTimer);
   if (bluetoothDevice && bluetoothDevice.gatt.connected) {
     bluetoothDevice.gatt.disconnect();
+    // gattserverdisconnected イベントが onBtDisconnected を呼ぶため、ここでは呼ばない
+  } else {
+    // すでに切断済みの場合のみ直接呼ぶ
+    onBtDisconnected();
   }
-  onBtDisconnected();
 }
 
 function onBtDisconnected() {
   isConnected = false;
   gattCharacteristic = null;
-  setBtStatus('', '未接続');
-  document.getElementById('btConnectBtn').disabled = false;
-  document.getElementById('btDisconnectBtn').disabled = true;
-  showToast('Bluetooth 切断されました');
+
+  const autoReconnect = document.getElementById('btAutoReconnect').checked;
+  if (!isUserDisconnected && autoReconnect && bluetoothDevice) {
+    // 予期せぬ切断 → 自動再接続を試みる
+    scheduleReconnect();
+  } else {
+    isUserDisconnected = false;
+    reconnectAttempts = 0;
+    setBtStatus('', '未接続');
+    document.getElementById('btConnectBtn').disabled = false;
+    document.getElementById('btDisconnectBtn').disabled = true;
+    showToast('Bluetooth 切断されました');
+  }
+}
+
+function scheduleReconnect() {
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    reconnectAttempts = 0;
+    setBtStatus('error', '再接続失敗（上限到達）');
+    document.getElementById('btConnectBtn').disabled = false;
+    document.getElementById('btDisconnectBtn').disabled = true;
+    showToast('自動再接続に失敗しました。手動で接続してください。', true);
+    return;
+  }
+  const delay = RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts);
+  reconnectAttempts++;
+  setBtStatus('connecting', `再接続中... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+  showToast(`切断されました。${delay / 1000}秒後に再接続を試みます (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+  reconnectTimer = setTimeout(attemptReconnect, delay);
+}
+
+async function attemptReconnect() {
+  if (!bluetoothDevice) return;
+  const serviceUUID = document.getElementById('btServiceUUID').value.trim();
+  const charUUID    = document.getElementById('btCharUUID').value.trim();
+  try {
+    const server  = await bluetoothDevice.gatt.connect();
+    const service = await server.getPrimaryService(serviceUUID);
+    gattCharacteristic = await service.getCharacteristic(charUUID);
+    isConnected = true;
+    reconnectAttempts = 0;
+    setBtStatus('connected', `接続済み: ${bluetoothDevice.name || '(名前なし)'}`);
+    document.getElementById('btConnectBtn').disabled = true;
+    document.getElementById('btDisconnectBtn').disabled = false;
+    showToast('Bluetooth 再接続しました');
+  } catch (err) {
+    scheduleReconnect();
+  }
 }
 
 function setBtStatus(state, label) {
@@ -846,15 +937,44 @@ function onTimeUpdate() {
 
 function updatePlaybackUI(t) {
   const total = audioEl.duration || 0;
-  document.getElementById('playbackFill').style.width = total > 0 ? `${(t / total) * 100}%` : '0%';
+  const audioPct = total > 0 ? (t / total) * 100 : 0;
+  document.getElementById('playbackFill').style.width = `${audioPct}%`;
   document.getElementById('playbackTime').textContent = `${formatTime(t)} / ${formatTime(total)}`;
+
+  // 波形プレイヘッド（音声全体に対する割合）
+  document.getElementById('waveformPlayhead').style.left = `${audioPct}%`;
+
+  // パターンプレイヘッド（CSV時間軸に対する割合）
+  if (csvRows.length > 0) {
+    const maxT = csvRows[csvRows.length - 1].time;
+    const csvPct = maxT > 0 ? Math.min((t / maxT) * 100, 100) : 0;
+    document.getElementById('patternPlayhead').style.left = `${csvPct}%`;
+  }
 }
 
 function seekAudio(e) {
   if (!audioEl.duration) return;
   const bar = document.getElementById('playbackBar');
-  const ratio = (e.clientX - bar.getBoundingClientRect().left) / bar.offsetWidth;
+  const rect = bar.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   audioEl.currentTime = ratio * audioEl.duration;
+}
+
+function seekFromWaveform(e) {
+  if (!audioEl.duration) return;
+  const canvas = document.getElementById('waveformCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  audioEl.currentTime = ratio * audioEl.duration;
+}
+
+function seekFromPattern(e) {
+  if (!audioEl.duration || csvRows.length === 0) return;
+  const canvas = document.getElementById('patternCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const maxT = csvRows[csvRows.length - 1].time;
+  audioEl.currentTime = Math.min(ratio * maxT, audioEl.duration);
 }
 
 function setVolume(v) {
