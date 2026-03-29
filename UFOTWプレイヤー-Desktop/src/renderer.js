@@ -70,6 +70,13 @@ let activePlaylistId = null;
 window.addEventListener('DOMContentLoaded', () => {
   audioEl = document.getElementById('audioElement');
 
+  // 前回接続したデバイス名をフィルタ欄に復元
+  const savedDeviceName = localStorage.getItem('lastBtDeviceName');
+  if (savedDeviceName) {
+    const nameFilterEl = document.getElementById('btNameFilter');
+    if (nameFilterEl && !nameFilterEl.value) nameFilterEl.value = savedDeviceName;
+  }
+
   if (!navigator.bluetooth) {
     document.getElementById('noBtWarning').style.display = 'block';
   }
@@ -114,6 +121,16 @@ function connectGattWithTimeout(gatt, ms = 10000) {
     gatt.connect(),
     new Promise((_, reject) =>
       setTimeout(() => reject(Object.assign(new Error('接続タイムアウト（10秒）'), { name: 'TimeoutError' })), ms)
+    )
+  ]);
+}
+
+// 任意の Promise にタイムアウトを付与するヘルパー
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(Object.assign(new Error(`タイムアウト: ${label}`), { name: 'TimeoutError' })), ms)
     )
   ]);
 }
@@ -164,17 +181,19 @@ async function findWritableCharacteristic(server) {
     const candidates = customSvcUUID
       ? [customSvcUUID, ...KNOWN_SERVICE_UUIDS]
       : KNOWN_SERVICE_UUIDS;
-    for (const uuid of candidates) {
-      try {
-        services.push(await server.getPrimaryService(uuid));
-      } catch (_) {}
+    // 各UUID を並列取得し、5秒でタイムアウト（シーケンシャル試行による長時間ブロックを防ぐ）
+    const svcResults = await Promise.allSettled(
+      candidates.map(uuid => withTimeout(server.getPrimaryService(uuid), 5000, uuid))
+    );
+    for (const r of svcResults) {
+      if (r.status === 'fulfilled') services.push(r.value);
     }
   }
 
   let totalCharCount = 0;
   for (const service of services) {
     let chars;
-    try { chars = await service.getCharacteristics(); } catch (_) { continue; }
+    try { chars = await withTimeout(service.getCharacteristics(), 5000, 'getCharacteristics'); } catch (_) { continue; }
     totalCharCount += chars.length;
     for (const char of chars) {
       if (char.properties.write || char.properties.writeWithoutResponse) {
@@ -220,12 +239,28 @@ async function connectBluetooth() {
     clearTimeout(scanTimeoutId);
     scanTimeoutId = null;
 
+    // デバイス名を保存（次回起動時のフィルタ復元用）
+    if (device.name) {
+      try { localStorage.setItem('lastBtDeviceName', device.name); } catch (_) {}
+    }
+
     device.removeEventListener('gattserverdisconnected', onBtDisconnected);
     device.addEventListener('gattserverdisconnected', onBtDisconnected);
 
+    setBtStatus('gatt', 'GATT 接続中...');
     showToast('GATT 接続中...');
-    const server = await connectGattWithTimeout(device.gatt);
-    const found  = await findWritableCharacteristic(server);
+    // gatt.connect() + findWritableCharacteristic() 全体に 30s のタイムアウトを設ける。
+    // Promise.race はキャンセルできないため内部処理はバックグラウンドで継続するが、
+    // UI は確実にタイムアウトで復帰できる。
+    const [server, found] = await withTimeout(
+      (async () => {
+        const s = await connectGattWithTimeout(device.gatt);
+        const f = await findWritableCharacteristic(s);
+        return [s, f];
+      })(),
+      30000,
+      'GATT接続シーケンス全体'
+    );
 
     if (!found || found._notFound) {
       server.disconnect();
@@ -291,6 +326,12 @@ function onBtDisconnected() {
   gattCharacteristic = null;
   isSending = false; // 送信中フラグをリセット
 
+  // 切断時に再生を停止する（オプション）
+  const stopOnDisconnect = document.getElementById('btStopOnDisconnect')?.checked;
+  if (stopOnDisconnect && isPlaying) {
+    pauseAudio();
+  }
+
   const autoReconnect = document.getElementById('btAutoReconnect').checked;
   if (!isUserDisconnected && autoReconnect && bluetoothDevice) {
     scheduleReconnect();
@@ -315,7 +356,7 @@ function scheduleReconnect() {
   }
   const delay = RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts);
   reconnectAttempts++;
-  setBtStatus('connecting', `再接続中... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+  setBtStatus('reconnecting', `再接続中... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
   showToast(`切断されました。${delay / 1000}秒後に再接続を試みます (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
   reconnectTimer = setTimeout(attemptReconnect, delay);
 }
@@ -460,19 +501,20 @@ async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   // 実際に書き込みを試みて失敗したら自動的にもう一方のメソッドへフォールバックする。
   // UFO TW は BLE 仕様上 "Write Without Response" タイプだが、properties.write が
   // true と誤報告されて writeValueWithResponse を呼ぶと DOMException が飛ぶケースがあった。
+  const WRITE_TIMEOUT_MS = 5000;
   if (writeMode === 'withoutResponse') {
     try {
-      await gattCharacteristic.writeValueWithoutResponse(bytes);
+      await withTimeout(gattCharacteristic.writeValueWithoutResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithoutResponse');
     } catch (_) {
       // withoutResponse が使えない場合は response にフォールバック
-      await gattCharacteristic.writeValueWithResponse(bytes);
+      await withTimeout(gattCharacteristic.writeValueWithResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithResponse');
     }
   } else {
     try {
-      await gattCharacteristic.writeValueWithResponse(bytes);
+      await withTimeout(gattCharacteristic.writeValueWithResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithResponse');
     } catch (_) {
       // response が失敗（UFO TW など writeWithoutResponse 専用デバイス）は withoutResponse へフォールバック
-      await gattCharacteristic.writeValueWithoutResponse(bytes);
+      await withTimeout(gattCharacteristic.writeValueWithoutResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithoutResponse');
     }
   }
 }

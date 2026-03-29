@@ -47,9 +47,11 @@ h2 {
   flex-shrink: 0;
   transition: background 0.3s;
 }
-.bt-dot.connected { background: #27ae60; box-shadow: 0 0 6px #27ae60; }
-.bt-dot.connecting { background: #f39c12; animation: pulse 1s infinite; }
-.bt-dot.error { background: #e74c3c; }
+.bt-dot.connected    { background: #27ae60; box-shadow: 0 0 6px #27ae60; }
+.bt-dot.gatt         { background: #2980b9; box-shadow: 0 0 6px #2980b9; animation: pulse 1s infinite; }
+.bt-dot.connecting   { background: #f39c12; animation: pulse 1s infinite; }
+.bt-dot.reconnecting { background: #e67e22; animation: pulse 0.6s infinite; }
+.bt-dot.error        { background: #e74c3c; }
 
 @keyframes pulse {
   0%,100% { opacity: 1; }
