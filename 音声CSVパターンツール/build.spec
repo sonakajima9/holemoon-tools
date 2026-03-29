@@ -28,7 +28,7 @@ a = Analysis(
         '_cffi_backend',
         'dearpygui._dearpygui', # dearpygui の C 拡張を明示的に含める
     ] + _webrtcvad[2] + _sounddevice[2] + _sounddevice_data[2] + _dearpygui[2],
-    hookspath=[],
+    hookspath=['hooks'],  # hooks/hook-webrtcvad.py で標準フックを上書き
     hooksconfig={},
     runtime_hooks=[],
     # 未使用のGUIフレームワークを除外してサイズを削減
