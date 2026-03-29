@@ -735,20 +735,31 @@ function showToast(msg, isError) {
 function initAudioDropZone() {
   const dropZone = document.getElementById('audioDropZone');
   const fileInput = document.getElementById('audioFileInput');
+  const AUDIO_EXTS = ['.wav', '.mp3', '.ogg', '.m4a', '.flac'];
+
+  function isAudioFile(file) {
+    if (file.type.startsWith('audio/')) return true;
+    const ext = ('.' + file.name.split('.').pop()).toLowerCase();
+    return AUDIO_EXTS.includes(ext);
+  }
 
   dropZone.addEventListener('dragover', e => {
     e.preventDefault();
     dropZone.classList.add('drag-over');
   });
-  dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('drag-over');
+  dropZone.addEventListener('dragleave', e => {
+    if (!dropZone.contains(e.relatedTarget)) {
+      dropZone.classList.remove('drag-over');
+    }
   });
   dropZone.addEventListener('drop', e => {
     e.preventDefault();
     dropZone.classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('audio/')) {
+    if (file && isAudioFile(file)) {
       loadAudioFile(file);
+    } else if (file) {
+      showToast('対応していない形式です (WAV / MP3 / OGG / M4A / FLAC)', true);
     }
   });
   fileInput.addEventListener('change', e => {
@@ -1203,7 +1214,9 @@ function initCsvDropZone() {
     dropZone.addEventListener('dragleave', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      dropZone.classList.remove('drag-over');
+      if (!dropZone.contains(e.relatedTarget)) {
+        dropZone.classList.remove('drag-over');
+      }
     });
 
     dropZone.addEventListener('drop', (e) => {
@@ -3067,6 +3080,10 @@ function renderContentPatternMap(linePatterns) {
 // ============================================================
 // Initialization
 // ============================================================
+// Prevent browser from opening files dropped outside the drop zones
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => e.preventDefault());
+
 document.addEventListener('DOMContentLoaded', function() {
   initAudioDropZone();
   initCsvDropZone();
