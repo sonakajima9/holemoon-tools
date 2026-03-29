@@ -141,14 +141,29 @@ class AnalysisResult:
 
 def read_wav_as_mono16(path: str) -> tuple[array.array, int]:
     """
-    WAVファイルを読み込み、モノラル16bit PCMとサンプルレートを返す。
-    マルチチャンネル・8/24/32bit にも対応。
+    音声ファイルを読み込み、モノラル16bit PCMとサンプルレートを返す。
+    soundfile が利用可能な場合は優先使用 (WAV/FLAC/OGG 等、日本語パス対応)。
+    フォールバックとして wave モジュール (WAV 専用) を使用。
     """
-    with wave.open(path, "rb") as wf:
-        n_channels = wf.getnchannels()
-        sampwidth = wf.getsampwidth()
-        framerate = wf.getframerate()
-        raw = wf.readframes(wf.getnframes())
+    # soundfile による読み込み (日本語パス・複数フォーマット対応)
+    try:
+        import soundfile as _sf  # type: ignore
+        import numpy as _np      # type: ignore
+        data, framerate = _sf.read(path, dtype="float32", always_2d=True)
+        mono = data.mean(axis=1) if data.shape[1] > 1 else data[:, 0]
+        mono_int16 = (mono * 32767.0).clip(-32768.0, 32767.0).astype(_np.int16)
+        samples = array.array("h", mono_int16.tobytes())
+        return samples, int(framerate)
+    except Exception:
+        pass
+
+    # フォールバック: wave モジュール (WAV 専用・日本語パス対応のため open() を先行)
+    with open(path, "rb") as raw_fp:
+        with wave.open(raw_fp) as wf:
+            n_channels = wf.getnchannels()
+            sampwidth = wf.getsampwidth()
+            framerate = wf.getframerate()
+            raw = wf.readframes(wf.getnframes())
 
     # サンプルを16bit整数へ変換
     if sampwidth == 1:
@@ -348,9 +363,25 @@ def parse_csv(path: str) -> List[CsvRow]:
     3列形式: time(ds), direction, speed
     5列形式: time(ds), leftDir, leftSpeed, rightDir, rightSpeed
     先頭行がヘッダの場合はスキップ。
+    エンコード: UTF-8 (BOM付き) → UTF-8 → CP932(Shift-JIS) の順で自動判別。
     """
+    encodings = ["utf-8-sig", "utf-8", "cp932"]
+    last_exc: Exception = RuntimeError("不明なエラー")
+    for enc in encodings:
+        try:
+            return _parse_csv_with_encoding(path, enc)
+        except (UnicodeDecodeError, UnicodeError) as e:
+            last_exc = e
+    raise ValueError(
+        "CSVファイルのエンコードを判別できませんでした。"
+        "UTF-8 または Shift-JIS で保存してください。"
+    ) from last_exc
+
+
+def _parse_csv_with_encoding(path: str, encoding: str) -> List[CsvRow]:
+    """指定エンコードでCSVを解析する内部関数"""
     rows: List[CsvRow] = []
-    with open(path, encoding="utf-8-sig", newline="") as f:
+    with open(path, encoding=encoding, newline="") as f:
         for lineno, line in enumerate(f):
             line = line.strip()
             if not line:

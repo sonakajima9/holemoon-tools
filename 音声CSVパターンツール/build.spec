@@ -13,11 +13,18 @@ _sounddevice = collect_all('sounddevice')
 _sounddevice_data = collect_all('_sounddevice_data')
 _dearpygui = collect_all('dearpygui')
 
+import os
+# fonts/ フォルダが存在する場合、日本語フォントをバンドルする
+_font_datas = []
+_fonts_dir = os.path.join(os.path.dirname(os.path.abspath(SPEC)), 'fonts')
+if os.path.isdir(_fonts_dir):
+    _font_datas = [(_fonts_dir, 'fonts')]
+
 a = Analysis(
     ['gui.py'],
     pathex=['.'],
     binaries=_webrtcvad[1] + _sounddevice[1] + _sounddevice_data[1] + _dearpygui[1],
-    datas=_webrtcvad[0] + _sounddevice[0] + _sounddevice_data[0] + _dearpygui[0],
+    datas=_webrtcvad[0] + _sounddevice[0] + _sounddevice_data[0] + _dearpygui[0] + _font_datas,
     hiddenimports=[
         'analyze',
         'soundfile',

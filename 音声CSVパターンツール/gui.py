@@ -518,6 +518,63 @@ C_TEXT   = (224, 224, 224)
 C_MUTED  = (140, 140, 140)
 
 
+def _setup_japanese_font() -> None:
+    """日本語フォントを DearPyGui に登録してデフォルトフォントに設定する"""
+    # スクリプト同階層の fonts/ フォルダを最優先で確認（PyInstaller バンドル用）
+    _base = Path(getattr(sys, "_MEIPASS", str(Path(__file__).parent)))
+    local_font_dir = _base / "fonts"
+    local_candidates: list[Path] = []
+    if local_font_dir.exists():
+        local_candidates = (
+            list(local_font_dir.glob("*.ttf"))
+            + list(local_font_dir.glob("*.ttc"))
+            + list(local_font_dir.glob("*.otf"))
+        )
+
+    # OS 別のシステムフォント候補
+    if sys.platform == "win32":
+        system_candidates = [
+            Path("C:/Windows/Fonts/msgothic.ttc"),
+            Path("C:/Windows/Fonts/YuGothM.ttc"),
+            Path("C:/Windows/Fonts/meiryo.ttc"),
+            Path("C:/Windows/Fonts/BIZ-UDGothicR.ttc"),
+        ]
+    elif sys.platform == "darwin":
+        system_candidates = [
+            Path("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"),
+            Path("/System/Library/Fonts/AppleSDGothicNeo.ttc"),
+            Path("/Library/Fonts/Arial Unicode.ttf"),
+        ]
+    else:  # Linux / その他
+        system_candidates = [
+            Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+            Path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
+            Path("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc"),
+            Path("/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf"),
+            Path("/usr/share/fonts/truetype/vlgothic/VL-Gothic-Regular.ttf"),
+            Path("/usr/share/fonts/opentype/ipaexfont-gothic/ipaexg.ttf"),
+            Path("/usr/share/fonts/truetype/fonts-japanese-gothic.ttf"),
+        ]
+
+    font_path: Optional[str] = None
+    for p in local_candidates + system_candidates:
+        if p.exists():
+            font_path = str(p)
+            break
+
+    if font_path is None:
+        return  # フォントが見つからない場合はデフォルトのまま続行
+
+    try:
+        with dpg.font_registry():
+            with dpg.font(font_path, 16) as jfont:
+                dpg.add_font_range_hint(dpg.mvFontRangeHint_Default)
+                dpg.add_font_range_hint(dpg.mvFontRangeHint_Japanese)
+        dpg.bind_font(jfont)
+    except Exception:
+        pass  # フォント読み込み失敗時はデフォルトのまま続行
+
+
 def _build_theme() -> int:
     with dpg.theme() as t:
         with dpg.theme_component(dpg.mvAll):
@@ -557,6 +614,7 @@ def _section_header(label: str) -> None:
 
 def build_gui() -> None:
     dpg.create_context()
+    _setup_japanese_font()   # 日本語フォントをコンテキスト作成直後に登録
     dpg.bind_theme(_build_theme())
 
     # ── ファイルダイアログ ─────────────────────────────────────────────────
