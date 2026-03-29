@@ -39,6 +39,12 @@ import os
 import struct
 import sys
 import wave
+
+# Windows の cp1252 環境でも日本語を出力できるよう UTF-8 に統一する
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional
