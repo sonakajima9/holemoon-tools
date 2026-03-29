@@ -14,8 +14,19 @@ const RECONNECT_BASE_DELAY = 2000;
 let connectedServiceUUID = null;
 let connectedCharUUID = null;
 
+// UFO-TW 実機プロトコル解析で確認済みのサービスUUID群
+const UFO_TW_SERVICE_UUIDS = [
+  '40ee0100-63ec-4b7f-8ce7-712efd55b90e',
+  '40ee0200-63ec-4b7f-8ce7-712efd55b90e',
+  '40ee2222-63ec-4b7f-8ce7-712efd55b90e',
+  '722a1c08-1a25-4941-6205-bd0fd52415a9',
+];
+// UFO-TW の書き込み先キャラクタリスティックUUID（40ee0200 サービス配下）
+const UFO_TW_CHAR_UUID = '40ee0202-63ec-4b7f-8ce7-712efd55b90e';
+
 const KNOWN_SERVICE_UUIDS = [
-  '40ee1111-63ec-4b7f-8ce7-712efd55b90e', // ★ Vorze UFO TW / UFO SA / A10 Cyclone SA / Piston (正式UUID)
+  ...UFO_TW_SERVICE_UUIDS,                 // ★ UFO-TW 実機確認済みUUID（優先）
+  '40ee1111-63ec-4b7f-8ce7-712efd55b90e', // Vorze UFO SA / A10 Cyclone SA / Piston
   '0000fff0-0000-1000-8000-00805f9b34fb', // 汎用BLE制御（多数の玩具）
   '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART Service (NUS)
   '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Microchip BM70
@@ -159,7 +170,23 @@ async function findWritableCharacteristic(server) {
     } catch (_) {}
   }
 
-  // --- Vorze既知UUID優先試行（誤キャラクタリスティック選択を防ぐため自動スキャンより前に実行）---
+  // --- UFO-TW 優先試行: 全サービスから 40ee0202 キャラクタリスティックを探す ---
+  // 実機プロトコル解析で確認: getPrimaryServices()[0] に 40ee0202 が存在する
+  try {
+    const allServices = await withTimeout(server.getPrimaryServices(), 5000, 'getPrimaryServices(UFO-TW)');
+    for (const svc of allServices) {
+      try {
+        const char = await withTimeout(
+          svc.getCharacteristic(UFO_TW_CHAR_UUID), 3000, `getChar(${UFO_TW_CHAR_UUID})`
+        );
+        if (char.properties.write || char.properties.writeWithoutResponse) {
+          return { serviceUUID: svc.uuid, charUUID: char.uuid, characteristic: char };
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+
+  // --- Vorze UFO SA / A10 Cyclone SA 既知UUID優先試行（誤キャラクタリスティック選択防止）---
   const VORZE_SVC  = '40ee1111-63ec-4b7f-8ce7-712efd55b90e';
   const VORZE_CHAR = '40ee2222-63ec-4b7f-8ce7-712efd55b90e';
   try {
@@ -460,12 +487,17 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
 
   switch (fmt) {
     case 'vorze_tw': {
-      // UFO TW / UFO SA: [0x01, leftByte, rightByte]
-      // 各バイト: (direction << 7) | speed(0-100)
-      const rs = Math.round(Math.min(100, Math.max(0, rightSpeed || 0)));
-      const leftByte  = ((dir & 0x01) << 7) | speed;
-      const rightByte = (((rightDir || 0) & 0x01) << 7) | rs;
-      return new Uint8Array([0x01, leftByte, rightByte]);
+      // UFO-TW プロトコル: [0x05, leftByte, rightByte]
+      // 各バイト: bit7=方向(1=逆転), bit0-6=パワー(0-100)
+      const scaleFactor = Math.max(0.01, Math.min(1.5,
+        parseFloat(document.getElementById('scaleFactor')?.value) || 1.0));
+      const inverted = document.getElementById('invertedFlag')?.checked ?? false;
+      const scaledLeft  = Math.min(100, Math.round(speed * scaleFactor));
+      const scaledRight = Math.min(100, Math.round((rightSpeed || 0) * scaleFactor));
+      let leftByte  = ((dir & 0x01) << 7) | scaledLeft;
+      let rightByte = (((rightDir || 0) & 0x01) << 7) | scaledRight;
+      if (inverted) { const tmp = leftByte; leftByte = rightByte; rightByte = tmp; }
+      return new Uint8Array([0x05, leftByte, rightByte]);
     }
     case 'vorze_sa': {
       // A10 Cyclone SA / Piston: [0x01, motorByte]
@@ -492,6 +524,12 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
   }
 }
 
+// "GATT operation already in progress" エラーかどうかを判定
+function isGattBusy(err) {
+  return err && typeof err.message === 'string' &&
+    err.message.toLowerCase().includes('gatt operation already in progress');
+}
+
 async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   if (!gattCharacteristic) return;
   const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
@@ -501,18 +539,21 @@ async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   // 実際に書き込みを試みて失敗したら自動的にもう一方のメソッドへフォールバックする。
   // UFO TW は BLE 仕様上 "Write Without Response" タイプだが、properties.write が
   // true と誤報告されて writeValueWithResponse を呼ぶと DOMException が飛ぶケースがあった。
+  // "GATT operation already in progress" は連続書き込み時に発生する既知エラーのため静かに無視する。
   const WRITE_TIMEOUT_MS = 5000;
   if (writeMode === 'withoutResponse') {
     try {
       await withTimeout(gattCharacteristic.writeValueWithoutResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithoutResponse');
-    } catch (_) {
+    } catch (err) {
+      if (isGattBusy(err)) return; // GATT 競合は無視
       // withoutResponse が使えない場合は response にフォールバック
       await withTimeout(gattCharacteristic.writeValueWithResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithResponse');
     }
   } else {
     try {
       await withTimeout(gattCharacteristic.writeValueWithResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithResponse');
-    } catch (_) {
+    } catch (err) {
+      if (isGattBusy(err)) return; // GATT 競合は無視
       // response が失敗（UFO TW など writeWithoutResponse 専用デバイス）は withoutResponse へフォールバック
       await withTimeout(gattCharacteristic.writeValueWithoutResponse(bytes), WRITE_TIMEOUT_MS, 'writeWithoutResponse');
     }

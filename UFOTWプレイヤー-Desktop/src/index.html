@@ -23,12 +23,12 @@
   <div class="bt-grid">
     <div class="form-group">
       <label>デバイス名フィルター（前方一致・空白で全検索）</label>
-      <input type="text" id="btNameFilter" placeholder="例: UFO" value="UFO">
+      <input type="text" id="btNameFilter" placeholder="例: UFO-TW" value="UFO-TW">
     </div>
     <div class="form-group">
       <label>コマンドフォーマット</label>
       <select id="cmdFormat">
-        <option value="vorze_tw" selected>Vorze UFO TW / UFO SA（3バイト: 0x01, 左(Dir«7|Speed), 右(Dir«7|Speed)）</option>
+        <option value="vorze_tw" selected>Vorze UFO TW（3バイト: 0x05, 左(Dir«7|Speed), 右(Dir«7|Speed)）</option>
         <option value="vorze_sa">Vorze A10 Cyclone SA / Piston（2バイト: 0x01, Dir«7|Speed）</option>
         <option value="lovense">Lovense互換（テキスト "Vibrate:XX;\r\n"）</option>
         <option value="raw1">1バイト（速度のみ 0x00-0xFF）</option>
@@ -65,7 +65,19 @@
     <button class="btn btn-secondary" style="align-self:flex-end;" onclick="testCommand()">テスト送信</button>
     <button class="btn btn-danger" id="testStopBtn" style="align-self:flex-end;" onclick="stopTestCommand()" disabled>停止</button>
   </div>
+  <div class="bt-grid" style="margin-top:8px;">
+    <div class="form-group">
+      <label>パワースケール（0.01〜1.5、デフォルト 1.0）</label>
+      <input type="number" id="scaleFactor" value="1.0" min="0.01" max="1.5" step="0.05" style="width:80px;">
+    </div>
+  </div>
   <div class="form-group" style="margin-top:8px;">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="invertedFlag">
+      左右反転（UFO-TW を逆向きに装着している場合）
+    </label>
+  </div>
+  <div class="form-group" style="margin-top:4px;">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
       <input type="checkbox" id="btAutoReconnect" checked>
       切断時に自動再接続する（最大5回、指数バックオフ）
@@ -263,7 +275,8 @@
     <div class="settings-section-title">Bluetooth UUID 手動設定（自動検出が失敗する場合）</div>
     <div class="uuid-hint">
       自動接続に失敗した場合、デバイス固有のUUIDをここに入力してください。<br>
-      Vorze UFO TW / UFO SA / A10 Cyclone SA — サービス: <code>40ee1111-63ec-4b7f-8ce7-712efd55b90e</code> &nbsp;キャラクタリスティック: <code>40ee2222-63ec-4b7f-8ce7-712efd55b90e</code>
+      UFO-TW — サービス: <code>40ee0200-63ec-4b7f-8ce7-712efd55b90e</code> &nbsp;キャラクタリスティック: <code>40ee0202-63ec-4b7f-8ce7-712efd55b90e</code><br>
+      UFO SA / A10 Cyclone SA / Piston — サービス: <code>40ee1111-63ec-4b7f-8ce7-712efd55b90e</code> &nbsp;キャラクタリスティック: <code>40ee2222-63ec-4b7f-8ce7-712efd55b90e</code>
     </div>
     <div class="settings-grid">
       <div class="form-group" style="grid-column: 1 / -1;">
