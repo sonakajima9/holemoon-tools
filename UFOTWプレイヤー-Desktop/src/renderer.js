@@ -686,8 +686,16 @@ function loadAudioFile(event) {
   event.target.value = '';
 }
 
-function applyAudioTrack(file) {
-  const url = URL.createObjectURL(file);
+async function applyAudioTrack(file) {
+  // Electron の D&D File には path プロパティがある。
+  // blob URL はファイル全体をメモリに展開してフリーズを招くため、
+  // path が取得できる場合は local:// URL 経由でストリーミング再生する。
+  let url;
+  if (window.electronAPI && file.path) {
+    url = await window.electronAPI.toFileUrl(file.path);
+  } else {
+    url = URL.createObjectURL(file);
+  }
   audioEl.src = url;
   audioEl.load();
 
@@ -699,24 +707,52 @@ function applyAudioTrack(file) {
 
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
   drawWaveformEmpty();
-  // 100MB 超のファイルは decodeAudioData 自体が長時間メインスレッドを占有するためスキップ
-  const MAX_WAVEFORM_FILE = 100 * 1024 * 1024;
-  if (file.size > MAX_WAVEFORM_FILE) {
-    showToast(`音声: ${file.name}（波形表示スキップ: ${(file.size / 1024 / 1024).toFixed(0)}MB）`);
-  } else {
-    const reader = new FileReader();
-    reader.onload = async e => {
+
+  if (window.electronAPI && file.path) {
+    // local:// URL 経由: path-based モードと同じ Range ベースの波形生成
+    showToast(`音声: ${file.name}`);
+    (async () => {
       try {
+        const MAX_WAVEFORM = 100 * 1024 * 1024;
+        // ファイルサイズを 1 バイト Range リクエストで先行取得し、巨大ファイルの全転送を回避
+        const sizeRes = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+        const contentRange = sizeRes.headers.get('Content-Range');
+        const fileSize = contentRange ? parseInt(contentRange.split('/')[1] || '0', 10) : 0;
+        if (fileSize > MAX_WAVEFORM) {
+          showToast(`音声: ${file.name}（波形スキップ: ${(fileSize / 1024 / 1024).toFixed(0)}MB）`);
+          return;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const arrayBuffer = await res.arrayBuffer();
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
+        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
         drawWaveform(decoded);
       } catch (err) {
         drawWaveformEmpty();
         showToast(`波形生成失敗: ${err.message}`, true);
       }
-    };
-    reader.readAsArrayBuffer(file);
-    showToast(`音声: ${file.name}`);
+    })();
+  } else {
+    // フォールバック: FileReader（ブラウザ環境 / path 非対応）
+    const MAX_WAVEFORM_FILE = 100 * 1024 * 1024;
+    if (file.size > MAX_WAVEFORM_FILE) {
+      showToast(`音声: ${file.name}（波形スキップ: ${(file.size / 1024 / 1024).toFixed(0)}MB）`);
+    } else {
+      const reader = new FileReader();
+      reader.onload = async e => {
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const decoded = await audioCtx.decodeAudioData(e.target.result);
+          drawWaveform(decoded);
+        } catch (err) {
+          drawWaveformEmpty();
+          showToast(`波形生成失敗: ${err.message}`, true);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      showToast(`音声: ${file.name}`);
+    }
   }
 }
 
@@ -787,7 +823,7 @@ async function loadTrackAt(index) {
       clearCSVState();
     }
   } else {
-    applyAudioTrack(audioQueue[index]);
+    await applyAudioTrack(audioQueue[index]);
     if (csvQueue.length > 0) {
       applyCSVTrack(csvQueue[Math.min(index, csvQueue.length - 1)]);
     }
@@ -1086,21 +1122,25 @@ async function applyAudioFromPath(audioPath, audioName) {
     showToast(`音声: ${audioName}`);
 
     // 波形描画: local:// URL 経由で fetch → decodeAudioData
-    // （IPC バイナリ転送を廃止し、大容量ファイルによるフリーズを根本解消）
     if (audioCtx) { audioCtx.close(); audioCtx = null; }
     drawWaveformEmpty();
     (async () => {
       try {
-        const MAX_WAVEFORM = 100 * 1024 * 1024; // 100MB 超はスキップ
+        const MAX_WAVEFORM = 100 * 1024 * 1024;
+        // 1バイトの Range リクエストでファイルサイズを先に確認し、
+        // 巨大ファイルの全バイト転送によるレンダラーフリーズを防ぐ
+        const sizeRes = await fetch(fileUrl, { headers: { Range: 'bytes=0-0' } });
+        const contentRange = sizeRes.headers.get('Content-Range');
+        const fileSize = contentRange ? parseInt(contentRange.split('/')[1] || '0', 10) : 0;
+        if (fileSize > MAX_WAVEFORM) {
+          showToast(`波形スキップ: ${(fileSize / 1024 / 1024).toFixed(0)}MB`);
+          return;
+        }
         const res = await fetch(fileUrl);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const arrayBuffer = await res.arrayBuffer();
-        if (arrayBuffer.byteLength > MAX_WAVEFORM) {
-          showToast(`波形スキップ: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(0)}MB`);
-          return;
-        }
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
         drawWaveform(decoded);
       } catch (decErr) {
         drawWaveformEmpty();
