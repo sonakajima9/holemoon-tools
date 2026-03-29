@@ -347,11 +347,8 @@ def _seek_to(time_sec: float) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def on_wav_selected(_s, app_data: dict) -> None:
-    selections = app_data.get("selections", {})
-    if not selections:
-        return
-    path = list(selections.values())[0]
+def _load_wav_file(path: str) -> None:
+    """音声ファイルを読み込む（ダイアログ・D&D共通処理）"""
     state.wav_path = path
     dpg.set_value("wav_label", Path(path).name)
     set_status(f"音声を読み込み中: {Path(path).name} ...")
@@ -376,11 +373,8 @@ def on_wav_selected(_s, app_data: dict) -> None:
     threading.Thread(target=_load, daemon=True).start()
 
 
-def on_csv_selected(_s, app_data: dict) -> None:
-    selections = app_data.get("selections", {})
-    if not selections:
-        return
-    path = list(selections.values())[0]
+def _load_csv_file(path: str) -> None:
+    """CSVファイルを読み込む（ダイアログ・D&D共通処理）"""
     state.csv_path = path
     dpg.set_value("csv_label", Path(path).name)
     try:
@@ -390,6 +384,33 @@ def on_csv_selected(_s, app_data: dict) -> None:
             dpg.enable_item("btn_analyze")
     except Exception as exc:
         set_status(f"CSVエラー: {exc}")
+
+
+def on_wav_selected(_s, app_data: dict) -> None:
+    selections = app_data.get("selections", {})
+    if not selections:
+        return
+    _load_wav_file(list(selections.values())[0])
+
+
+def on_csv_selected(_s, app_data: dict) -> None:
+    selections = app_data.get("selections", {})
+    if not selections:
+        return
+    _load_csv_file(list(selections.values())[0])
+
+
+def on_file_drop(_s, app_data) -> None:
+    """ビューポートへのファイルドロップ処理（OS からのドラッグ＆ドロップ）"""
+    if not isinstance(app_data, (list, tuple)):
+        return
+    wav_exts = {".wav", ".mp3", ".flac", ".ogg", ".aiff", ".aif"}
+    for path in app_data:
+        ext = Path(path).suffix.lower()
+        if ext in wav_exts:
+            _load_wav_file(path)
+        elif ext == ".csv":
+            _load_csv_file(path)
 
 
 def on_detect_clicked() -> None:
@@ -640,8 +661,8 @@ def build_gui() -> None:
         # ステータスバー
         with dpg.group(horizontal=True):
             dpg.add_text("●", color=C_RED)
-            dpg.add_text("起動完了 — 音声ファイルを選択してください", tag="status_text",
-                         color=C_MUTED)
+            dpg.add_text("起動完了 — ファイルをドラッグ＆ドロップするか左パネルで選択してください",
+                         tag="status_text", color=C_MUTED)
         dpg.add_separator()
         dpg.add_spacer(height=4)
 
@@ -657,20 +678,24 @@ def build_gui() -> None:
                     with dpg.child_window(width=255, height=-1, border=False):
 
                         # ── ファイル選択 ──────────────────────────────────
-                        _section_header("ファイル選択")
+                        _section_header("ファイル選択 / D&D")
                         dpg.add_button(
-                            label="WAV を選択",
+                            label="音声ファイルを選択…",
                             width=-1,
                             callback=lambda: dpg.show_item("dlg_wav"),
                         )
+                        dpg.add_text("WAV / MP3 / FLAC をドロップ可",
+                                     color=C_MUTED, wrap=245)
                         dpg.add_text("（未選択）", tag="wav_label",
                                      color=C_MUTED, wrap=245)
                         dpg.add_spacer(height=4)
                         dpg.add_button(
-                            label="CSV を選択",
+                            label="CSV ファイルを選択…",
                             width=-1,
                             callback=lambda: dpg.show_item("dlg_csv"),
                         )
+                        dpg.add_text("CSV をドロップ可",
+                                     color=C_MUTED, wrap=245)
                         dpg.add_text("（未選択）", tag="csv_label",
                                      color=C_MUTED, wrap=245)
 
@@ -863,6 +888,7 @@ def build_gui() -> None:
         min_height=640,
     )
     dpg.setup_dearpygui()
+    dpg.set_file_drop_callback(on_file_drop)
     dpg.show_viewport()
     dpg.set_primary_window("main_window", True)
 
