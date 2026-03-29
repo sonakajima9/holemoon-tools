@@ -124,9 +124,13 @@ ipcMain.on('bluetooth-select', (_event, deviceId) => {
     bluetoothSelectCallback(deviceId);
     bluetoothSelectCallback = null;
   }
-  if (pickerWindow && !pickerWindow.isDestroyed()) {
-    pickerWindow.destroy();
-  }
+  // setImmediate で遅延: IPCメッセージの送信元ウィンドウを同一ターン内で destroy() すると
+  // Electron 28+ でクラッシュするため、次のイベントループで破棄する
+  setImmediate(() => {
+    if (pickerWindow && !pickerWindow.isDestroyed()) {
+      pickerWindow.destroy();
+    }
+  });
 });
 
 ipcMain.on('bluetooth-cancel', () => {
@@ -134,9 +138,11 @@ ipcMain.on('bluetooth-cancel', () => {
     bluetoothSelectCallback('');
     bluetoothSelectCallback = null;
   }
-  if (pickerWindow && !pickerWindow.isDestroyed()) {
-    pickerWindow.destroy();
-  }
+  setImmediate(() => {
+    if (pickerWindow && !pickerWindow.isDestroyed()) {
+      pickerWindow.destroy();
+    }
+  });
 });
 
 // ===== File System / Dialog IPC =====
