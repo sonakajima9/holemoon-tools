@@ -51,6 +51,11 @@ function createMainWindow() {
   // navigator.bluetooth.requestDevice() が呼ばれるとこのイベントが発火する
   mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
     event.preventDefault();
+    // 旧コールバックが残っている場合は明示的にキャンセルしてから上書きする
+    // （接続ボタンの連打など複数呼び出し時のコールバック残留バグを防止）
+    if (bluetoothSelectCallback) {
+      bluetoothSelectCallback('');
+    }
     bluetoothSelectCallback = callback;
 
     if (pickerWindow && !pickerWindow.isDestroyed()) {

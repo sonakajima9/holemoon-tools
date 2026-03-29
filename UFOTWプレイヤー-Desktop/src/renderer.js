@@ -45,6 +45,8 @@ let scanTimeoutId = null;
 const SCAN_TIMEOUT_MS = 60000; // 60秒でスキャン中断
 let sendCount = 0;
 let isPlaying = false;
+// ★ Fix: setInterval 内で前回の BLE 書き込みが完了する前に次の送信が走るのを防ぐセマフォ
+let isSending = false;
 
 let audioQueue = [];
 let csvQueue = [];
@@ -287,6 +289,7 @@ function disconnectBluetooth() {
 function onBtDisconnected() {
   isConnected = false;
   gattCharacteristic = null;
+  isSending = false; // 送信中フラグをリセット
 
   const autoReconnect = document.getElementById('btAutoReconnect').checked;
   if (!isUserDisconnected && autoReconnect && bluetoothDevice) {
@@ -337,6 +340,7 @@ async function attemptReconnect() {
 
     gattCharacteristic = found.characteristic;
     isConnected = true;
+    isSending = false; // 送信中フラグをリセット
     reconnectAttempts = 0;
     setBtStatus('connected', `接続済み: ${bluetoothDevice.name || '(名前なし)'}`);
     document.getElementById('btConnectBtn').disabled    = true;
@@ -811,14 +815,15 @@ function startCommandTimer() {
   stopCommandTimer();
   const interval = parseInt(document.getElementById('sendInterval').value) || 100;
   commandTimer = setInterval(async () => {
-    if (!isPlaying) return;
-    const t = audioEl.currentTime;
+    if (!isPlaying || isSending) return;
+    const t    = audioEl.currentTime;
     const vals = getValuesAtTime(t);
     if (vals === null) return;
 
     updateStatusDisplay(t, vals);
 
     if (!isConnected) return;
+    isSending = true;
     try {
       if (csvFormat === 5) {
         await sendRawCommand(vals.leftDir, vals.leftSpeed, vals.rightDir, vals.rightSpeed);
@@ -827,9 +832,8 @@ function startCommandTimer() {
       }
       sendCount++;
       document.getElementById('statCount').textContent = sendCount;
-    } catch (err) {
-      // Silent: device may have disconnected
-    }
+    } catch (_) {}
+    isSending = false;
   }, interval);
 }
 
@@ -998,19 +1002,25 @@ async function applyAudioFromPath(audioPath, audioName) {
 
     showToast(`音声: ${audioName}`);
 
-    // 波形描画は別途非同期で実行（再生開始をブロックしない）
+    // 波形描画: local:// URL 経由で fetch → decodeAudioData
+    // （IPC バイナリ転送を廃止し、大容量ファイルによるフリーズを根本解消）
     if (audioCtx) { audioCtx.close(); audioCtx = null; }
     drawWaveformEmpty();
     (async () => {
       try {
-        const uint8 = await window.electronAPI.readBinaryFile(audioPath);
-        const arrayBuffer = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
+        const MAX_WAVEFORM = 100 * 1024 * 1024; // 100MB 超はスキップ
+        const res = await fetch(fileUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const arrayBuffer = await res.arrayBuffer();
+        if (arrayBuffer.byteLength > MAX_WAVEFORM) {
+          showToast(`波形スキップ: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(0)}MB`);
+          return;
+        }
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const decoded = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
         drawWaveform(decoded);
       } catch (decErr) {
         drawWaveformEmpty();
-        // 波形失敗は再生に影響しないため静かにトーストのみ
         showToast(`波形生成失敗: ${decErr.message}`, true);
       }
     })();
