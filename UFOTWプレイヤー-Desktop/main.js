@@ -49,18 +49,24 @@ function createMainWindow() {
   });
 
   // navigator.bluetooth.requestDevice() が呼ばれるとこのイベントが発火する
+  // ★ 注意: スキャン中に新デバイスが見つかるたびに同じ requestDevice() に対して
+  //   複数回発火する。毎回古いコールバックを '' でキャンセルすると requestDevice()
+  //   が途中で拒否されてしまい、その後でユーザーがデバイスを選択した際にクラッシュする。
   mainWindow.webContents.on('select-bluetooth-device', (event, deviceList, callback) => {
     event.preventDefault();
-    // 旧コールバックが残っている場合は明示的にキャンセルしてから上書きする
-    // （接続ボタンの連打など複数呼び出し時のコールバック残留バグを防止）
-    if (bluetoothSelectCallback) {
-      bluetoothSelectCallback('');
-    }
-    bluetoothSelectCallback = callback;
 
     if (pickerWindow && !pickerWindow.isDestroyed()) {
+      // ピッカーが既に開いている = 同じ requestDevice() スキャンのデバイスリスト更新。
+      // コールバックを上書きするだけで、古いコールバックは呼ばない。
+      bluetoothSelectCallback = callback;
       pickerWindow.webContents.send('bluetooth-devices', deviceList);
     } else {
+      // ピッカーが閉じている = 新しい requestDevice() 呼び出し。
+      // 前回の残留コールバックがあれば明示的にキャンセルしてから開始する。
+      if (bluetoothSelectCallback) {
+        bluetoothSelectCallback('');
+      }
+      bluetoothSelectCallback = callback;
       // deviceList が空でも即座にピッカーを開く（スキャン中表示＋キャンセル手段を確保）
       openDevicePicker(deviceList);
     }
