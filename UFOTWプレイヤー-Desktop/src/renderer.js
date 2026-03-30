@@ -954,8 +954,12 @@ function startCommandTimer() {
     if (!isConnected) return;
     isSending = true;
     try {
+      const fmt = document.getElementById('cmdFormat').value;
       if (csvFormat === 5) {
         await sendRawCommand(vals.leftDir, vals.leftSpeed, vals.rightDir, vals.rightSpeed);
+      } else if (fmt === 'vorze_tw' || fmt === 'raw4') {
+        // 3列CSVでデュアルモーター形式の場合、左右に同じ値をミラーリング
+        await sendRawCommand(vals.direction, vals.speed, vals.direction, vals.speed);
       } else {
         await sendRawCommand(vals.direction, vals.speed);
       }

@@ -463,6 +463,72 @@ details summary::-webkit-details-marker { color: #e94560; }
   margin-top: 12px;
   text-align: right;
 }
+
+/* ===== Extra buttons ===== */
+.btn-success { background: #27ae60; color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: 0.82rem; }
+
+/* ===== Work Manager ===== */
+.work-folder-label {
+  font-size: 0.78rem; color: #888; margin-left: 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 380px; display: inline-block; vertical-align: middle;
+}
+.work-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.work-col { background: #0a0f1e; border: 1px solid #0f3460; border-radius: 6px; overflow: hidden; }
+.work-col-title {
+  font-size: 0.8rem; color: #aaa; padding: 6px 10px;
+  background: #0f3460; border-bottom: 1px solid #1a4a80;
+}
+.work-file-list { max-height: 180px; overflow-y: auto; }
+.work-file-item {
+  padding: 7px 10px; font-size: 0.82rem; cursor: pointer;
+  border-bottom: 1px solid #0f1f3a; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; transition: background 0.15s;
+  color: #ccc; display: flex; align-items: center; justify-content: space-between;
+}
+.work-file-item:last-child { border-bottom: none; }
+.work-file-item:hover { background: rgba(233,69,96,0.1); }
+.work-file-item.selected-audio { background: rgba(233,69,96,0.22); color: #e94560; font-weight: 600; }
+.work-file-item.selected-csv   { background: rgba(52,152,219,0.22); color: #3498db; font-weight: 600; }
+.csv-match-badge { font-size: 0.75rem; margin-left: 6px; flex-shrink: 0; opacity: 0.7; cursor: default; }
+.work-link-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.85rem; }
+.link-label { color: #888; font-size: 0.78rem; flex-shrink: 0; }
+.link-value { font-size: 0.82rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-value.audio-link { color: #e94560; }
+.link-value.csv-link   { color: #3498db; }
+.link-arrow { color: #555; flex-shrink: 0; }
+
+/* ===== Playlist ===== */
+.playlist-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.playlist-name-input {
+  background: #0f3460; border: 1px solid #1a4a80; border-radius: 6px;
+  color: #e0e0e0; padding: 6px 8px; font-size: 0.85rem; flex: 1; min-width: 120px;
+}
+.playlist-name-input:focus { outline: none; border-color: #e94560; }
+#playlistSelector {
+  flex: 1; min-width: 150px; background: #0f3460; border: 1px solid #1a4a80;
+  border-radius: 6px; color: #e0e0e0; padding: 6px 8px; font-size: 0.85rem;
+}
+#playlistSelector:focus { outline: none; border-color: #e94560; }
+.playlist-file-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.playlist-items { display: flex; flex-direction: column; gap: 4px; }
+.playlist-item {
+  display: flex; align-items: center; gap: 8px; background: #0a0f1e;
+  border: 1px solid #0f3460; border-radius: 6px; padding: 8px 10px; font-size: 0.82rem;
+}
+.playlist-item-num { color: #555; font-size: 0.75rem; width: 22px; flex-shrink: 0; text-align: right; }
+.playlist-item-audio { color: #e94560; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.playlist-item-arrow { color: #444; flex-shrink: 0; font-size: 0.75rem; }
+.playlist-item-csv { color: #3498db; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.playlist-item-csv.no-csv { color: #555; font-style: italic; }
+.playlist-item-del { background: none; border: none; color: #c0392b; cursor: pointer; font-size: 0.9rem; padding: 2px 4px; flex-shrink: 0; opacity: 0.6; line-height: 1; }
+.playlist-item-del:hover { opacity: 1; }
+
+@media (max-width: 560px) {
+  .work-columns { grid-template-columns: 1fr; }
+  .playlist-controls { flex-direction: column; align-items: stretch; }
+}
 </style>
 </head>
 <body>
@@ -569,6 +635,61 @@ details summary::-webkit-details-marker { color: #e94560; }
       <div class="drop-icon">📊</div>
       <div class="drop-label">CSVファイルをドロップ<br>（UFOTW形式）</div>
       <div class="drop-filename" id="csvFilename"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 作品管理 Panel ===== -->
+<input type="file" id="folderInput" webkitdirectory multiple style="display:none" onchange="onFolderSelected(event)">
+<div class="panel" id="workPanel">
+  <h2>音声作品管理（フォルダ）</h2>
+  <div class="btn-row" style="margin-bottom:10px;align-items:center;">
+    <button class="btn btn-secondary" onclick="openWorkFolder()">📁 フォルダを開く</button>
+    <span id="workFolderLabel" class="work-folder-label"></span>
+  </div>
+  <div class="work-columns" id="workColumns" style="display:none;">
+    <div class="work-col">
+      <div class="work-col-title">🎵 音声ファイル</div>
+      <div class="work-file-list" id="workAudioList"></div>
+    </div>
+    <div class="work-col">
+      <div class="work-col-title">📊 CSVファイル</div>
+      <div class="work-file-list" id="workCsvList"></div>
+    </div>
+  </div>
+  <div id="workLinkArea" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #0f3460;">
+    <div class="work-link-row">
+      <span class="link-label">音声:</span>
+      <span id="selectedAudioLabel" class="link-value audio-link">未選択</span>
+      <span class="link-arrow">→</span>
+      <span class="link-label">CSV:</span>
+      <span id="selectedCsvLabel" class="link-value csv-link">未選択</span>
+    </div>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="btn btn-secondary" onclick="previewLinkedTrack()" id="previewLinkBtn" disabled>▶ プレビュー</button>
+      <button class="btn btn-success"   onclick="addLinkToPlaylist()"  id="addToPlaylistBtn" disabled>＋ プレイリストに追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== プレイリスト Panel ===== -->
+<input type="file" id="playlistFileInput" accept=".json" style="display:none" onchange="onPlaylistFileSelected(event)">
+<div class="panel" id="playlistPanel">
+  <h2>プレイリスト</h2>
+  <div class="playlist-controls">
+    <select id="playlistSelector" onchange="switchPlaylist(this.value)"><option value="">-- プレイリストを選択 --</option></select>
+    <input type="text" id="newPlaylistName" class="playlist-name-input" placeholder="プレイリスト名">
+    <button class="btn btn-primary" onclick="createPlaylist()">新規作成</button>
+    <button class="btn btn-danger btn-sm" id="deletePlaylistBtn" onclick="deleteActivePlaylist()" disabled title="プレイリストを削除">🗑</button>
+  </div>
+  <div class="playlist-file-controls">
+    <button class="btn btn-secondary" id="savePlaylistBtn" onclick="savePlaylistToFile()" disabled>💾 保存</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('playlistFileInput').click()">📂 読み込み</button>
+  </div>
+  <div id="playlistItemsArea" style="display:none;margin-top:12px;">
+    <div id="playlistItems" class="playlist-items"></div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-primary" onclick="playPlaylist()">▶ このプレイリストを再生</button>
     </div>
   </div>
 </div>
@@ -713,6 +834,20 @@ let isPlaying = false;
 let audioQueue = [];
 let csvQueue = [];
 let currentTrackIndex = 0;
+
+// pathTracks: null = ドラッグ&ドロップモード
+//             array = フォルダ/プレイリストモード
+// 各要素: { audioFile, audioName, csvFile, csvName }
+let pathTracks = null;
+
+// ===== Work / Folder Management State =====
+let currentWork       = null; // { folderName, audioFiles:[{name,file}], csvFiles:[{name,file}] }
+let selectedWorkAudio = null; // { name, file }
+let selectedWorkCsv   = null; // { name, file } | null
+
+// ===== Playlist State =====
+let playlists        = []; // [{ id, name, items:[{id,audioName,audioFile,csvName,csvFile}] }]
+let activePlaylistId = null;
 
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', () => {
@@ -1084,12 +1219,14 @@ async function testCommand() {
   const target = document.getElementById('testTarget').value; // 'both' | 'left' | 'right'
   const dir    = parseInt(document.getElementById('testDir').value) || 0; // 0=正転, 1=逆転
   const speed  = clamp(parseInt(document.getElementById('testSpeed').value) || 50, 0, 100);
+  const fmt    = document.getElementById('cmdFormat').value;
+  const isDual = (fmt === 'vorze_tw' || fmt === 'raw4'); // フォーマット基準でデュアルモーター判定
 
   const dirLabel    = dir ? '逆転' : '正転';
   const targetLabel = target === 'both' ? '両方' : target === 'left' ? '左' : '右';
 
   try {
-    if (csvFormat === 5) {
+    if (isDual) {
       const lSpeed = target !== 'right' ? speed : 0;
       const rSpeed = target !== 'left'  ? speed : 0;
       const lDir   = target !== 'right' ? dir   : 0;
@@ -1296,6 +1433,7 @@ function loadAudioFile(event) {
   if (!files.length) return;
   audioQueue = files;
   csvQueue   = [];
+  pathTracks = null; // ドラッグ&ドロップモードに戻す
   currentTrackIndex = 0;
   applyAudioTrack(files[0]);
   updateTrackUI();
@@ -1387,15 +1525,26 @@ async function onAudioEnded() {
 
 async function loadTrackAt(index) {
   currentTrackIndex = index;
-  applyAudioTrack(audioQueue[index]);
-  if (csvQueue.length > 0) {
-    applyCSVTrack(csvQueue[Math.min(index, csvQueue.length - 1)]);
+  if (pathTracks !== null) {
+    const track = pathTracks[index];
+    if (!track) return;
+    await applyAudioFromFile(track.audioFile, track.audioName);
+    if (track.csvFile) {
+      await applyCSVFromFile(track.csvFile, track.csvName);
+    } else {
+      clearCSVState();
+    }
+  } else {
+    applyAudioTrack(audioQueue[index]);
+    if (csvQueue.length > 0) {
+      applyCSVTrack(csvQueue[Math.min(index, csvQueue.length - 1)]);
+    }
   }
   updateTrackUI();
 }
 
 function getTrackCount() {
-  return audioQueue.length;
+  return pathTracks !== null ? pathTracks.length : audioQueue.length;
 }
 
 function updateTrackUI() {
@@ -1404,6 +1553,439 @@ function updateTrackUI() {
     total > 1 ? `トラック ${currentTrackIndex + 1} / ${total}` : '';
   document.getElementById('prevTrackBtn').disabled = currentTrackIndex <= 0;
   document.getElementById('nextTrackBtn').disabled = total === 0 || currentTrackIndex >= total - 1;
+}
+
+// ===== File-based Audio / CSV Loading =====
+async function applyAudioFromFile(file, name) {
+  if (!file) { showToast(`音声ファイルが見つかりません: ${name}`, true); return; }
+  const url = URL.createObjectURL(file);
+  if (audioEl.src && audioEl.src.startsWith('blob:')) URL.revokeObjectURL(audioEl.src);
+  audioEl.src = url;
+  audioEl.load();
+
+  const total = getTrackCount();
+  document.getElementById('audioFilename').textContent =
+    total > 1 ? `${name} (${currentTrackIndex + 1}/${total})` : name;
+  document.getElementById('audioDrop').classList.add('loaded');
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = false;
+
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  drawWaveformEmpty();
+  const MAX_WAVEFORM = 100 * 1024 * 1024;
+  if (file.size <= MAX_WAVEFORM) {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const decoded = await audioCtx.decodeAudioData(e.target.result.slice(0));
+        drawWaveform(decoded);
+      } catch (_) { drawWaveformEmpty(); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  showToast(`音声: ${name}`);
+}
+
+async function applyCSVFromFile(file, name) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    parseCSV(text);
+    const total = getTrackCount();
+    document.getElementById('csvFilename').textContent =
+      total > 1 ? `${name} (${currentTrackIndex + 1}/${total})` : name;
+    document.getElementById('csvDrop').classList.add('loaded');
+    document.getElementById('patternPanel').style.display = 'block';
+    drawPattern();
+    showToast(`CSV: ${name} (${csvRows.length}行)`);
+  } catch (err) {
+    showToast(`CSV 読み込み失敗: ${err.message}`, true);
+  }
+}
+
+function clearCSVState() {
+  csvRows   = [];
+  csvFormat = 3;
+  document.getElementById('csvFilename').textContent = '';
+  document.getElementById('csvDrop').classList.remove('loaded');
+  document.getElementById('patternPanel').style.display = 'none';
+}
+
+// ===== Work / Folder Management =====
+function openWorkFolder() {
+  document.getElementById('folderInput').click();
+}
+
+function onFolderSelected(event) {
+  const files = Array.from(event.target.files);
+  event.target.value = '';
+  if (!files.length) return;
+
+  const audioExts = new Set(['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac', '.wma']);
+  const csvExts   = new Set(['.csv', '.txt']);
+  const extOf = f => f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+
+  // webkitdirectory では webkitRelativePath が "フォルダ名/ファイル名" の形式
+  const folderName = files[0].webkitRelativePath.split('/')[0] || 'フォルダ';
+
+  currentWork = {
+    folderName,
+    audioFiles: files.filter(f => audioExts.has(extOf(f))).map(f => ({ name: f.name, file: f }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
+    csvFiles:   files.filter(f => csvExts.has(extOf(f))).map(f => ({ name: f.name, file: f }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
+  };
+  selectedWorkAudio = null;
+  selectedWorkCsv   = null;
+
+  document.getElementById('workFolderLabel').textContent = folderName;
+  document.getElementById('workColumns').style.display   = '';
+  document.getElementById('workLinkArea').style.display  = '';
+
+  renderWorkAudioList();
+  renderWorkCsvList();
+  updateWorkLinkUI();
+  showToast(`フォルダ読み込み: 音声 ${currentWork.audioFiles.length}件 / CSV ${currentWork.csvFiles.length}件`);
+}
+
+function stemName(filename) {
+  return filename.replace(/\.[^.]+$/, '');
+}
+
+function findMatchingCsv(audioFileObj) {
+  if (!currentWork) return null;
+  const stem = stemName(audioFileObj.name).toLowerCase();
+  return currentWork.csvFiles.find(c => stemName(c.name).toLowerCase() === stem) || null;
+}
+
+function renderWorkAudioList() {
+  const list = document.getElementById('workAudioList');
+  list.innerHTML = '';
+  if (!currentWork) return;
+
+  if (currentWork.audioFiles.length === 0) {
+    list.innerHTML = '<div style="padding:10px;font-size:0.8rem;color:#555;">音声ファイルが見つかりません</div>';
+    return;
+  }
+  currentWork.audioFiles.forEach(fileObj => {
+    const item = document.createElement('div');
+    item.className = 'work-file-item';
+    if (selectedWorkAudio?.name === fileObj.name) item.classList.add('selected-audio');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = fileObj.name;
+    item.appendChild(nameSpan);
+
+    const matchedCsv = findMatchingCsv(fileObj);
+    if (matchedCsv) {
+      const badge = document.createElement('span');
+      badge.className = 'csv-match-badge';
+      badge.textContent = '📊';
+      badge.title = `対応CSV: ${matchedCsv.name}`;
+      item.appendChild(badge);
+    }
+
+    item.addEventListener('click', () => {
+      selectedWorkAudio = fileObj;
+      const auto = findMatchingCsv(fileObj);
+      if (auto) selectedWorkCsv = auto;
+      renderWorkAudioList();
+      renderWorkCsvList();
+      updateWorkLinkUI();
+    });
+    item.addEventListener('dblclick', () => {
+      selectedWorkAudio = fileObj;
+      const auto = findMatchingCsv(fileObj);
+      if (auto) selectedWorkCsv = auto;
+      previewLinkedTrack();
+    });
+    list.appendChild(item);
+  });
+}
+
+function renderWorkCsvList() {
+  const list = document.getElementById('workCsvList');
+  list.innerHTML = '';
+  if (!currentWork) return;
+
+  const noneItem = document.createElement('div');
+  noneItem.className   = 'work-file-item';
+  noneItem.textContent = '（CSVなし）';
+  noneItem.style.color = '#555';
+  noneItem.style.fontStyle = 'italic';
+  if (selectedWorkCsv === null) noneItem.style.background = 'rgba(80,80,80,0.15)';
+  noneItem.addEventListener('click', () => { selectedWorkCsv = null; renderWorkCsvList(); updateWorkLinkUI(); });
+  list.appendChild(noneItem);
+
+  if (currentWork.csvFiles.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:10px;font-size:0.8rem;color:#555;';
+    empty.textContent   = 'CSVファイルが見つかりません';
+    list.appendChild(empty);
+    return;
+  }
+  currentWork.csvFiles.forEach(fileObj => {
+    const item = document.createElement('div');
+    item.className = 'work-file-item';
+    if (selectedWorkCsv?.name === fileObj.name) item.classList.add('selected-csv');
+    item.textContent = fileObj.name;
+    item.addEventListener('click', () => { selectedWorkCsv = fileObj; renderWorkCsvList(); updateWorkLinkUI(); });
+    list.appendChild(item);
+  });
+}
+
+function updateWorkLinkUI() {
+  document.getElementById('selectedAudioLabel').textContent = selectedWorkAudio ? selectedWorkAudio.name : '未選択';
+  document.getElementById('selectedCsvLabel').textContent   = selectedWorkCsv   ? selectedWorkCsv.name   : '（なし）';
+  const hasAudio = selectedWorkAudio !== null;
+  document.getElementById('previewLinkBtn').disabled  = !hasAudio;
+  document.getElementById('addToPlaylistBtn').disabled = !hasAudio || !activePlaylistId;
+}
+
+async function previewLinkedTrack() {
+  if (!selectedWorkAudio) return;
+  pathTracks = [{
+    audioFile: selectedWorkAudio.file,
+    audioName: selectedWorkAudio.name,
+    csvFile:   selectedWorkCsv?.file || null,
+    csvName:   selectedWorkCsv?.name || null,
+  }];
+  currentTrackIndex = 0;
+  if (isPlaying) stopPlayback();
+  await loadTrackAt(0);
+  updateTrackUI();
+}
+
+// ===== Playlist Management =====
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function createPlaylist() {
+  const nameInput = document.getElementById('newPlaylistName');
+  const name = nameInput.value.trim() || `プレイリスト${playlists.length + 1}`;
+  const playlist = { id: generateId(), name, items: [] };
+  playlists.push(playlist);
+  activePlaylistId = playlist.id;
+  nameInput.value  = '';
+  renderPlaylistSelector();
+  renderPlaylistItems();
+  updateWorkLinkUI();
+  showToast(`プレイリスト「${name}」を作成しました`);
+}
+
+function deleteActivePlaylist() {
+  if (!activePlaylistId) return;
+  const idx = playlists.findIndex(p => p.id === activePlaylistId);
+  if (idx < 0) return;
+  const name = playlists[idx].name;
+  playlists.splice(idx, 1);
+  activePlaylistId = playlists.length > 0 ? playlists[playlists.length - 1].id : null;
+  renderPlaylistSelector();
+  renderPlaylistItems();
+  updateWorkLinkUI();
+  showToast(`プレイリスト「${name}」を削除しました`);
+}
+
+function switchPlaylist(id) {
+  activePlaylistId = id || null;
+  document.getElementById('savePlaylistBtn').disabled   = !activePlaylistId;
+  document.getElementById('deletePlaylistBtn').disabled = !activePlaylistId;
+  renderPlaylistItems();
+  updateWorkLinkUI();
+}
+
+function getActivePlaylist() {
+  return playlists.find(p => p.id === activePlaylistId) || null;
+}
+
+function addLinkToPlaylist() {
+  if (!selectedWorkAudio || !activePlaylistId) return;
+  const playlist = getActivePlaylist();
+  if (!playlist) return;
+  playlist.items.push({
+    id:        generateId(),
+    audioName: selectedWorkAudio.name,
+    audioFile: selectedWorkAudio.file,
+    csvName:   selectedWorkCsv?.name || null,
+    csvFile:   selectedWorkCsv?.file || null,
+  });
+  renderPlaylistSelector();
+  renderPlaylistItems();
+  showToast(`「${selectedWorkAudio.name}」をプレイリストに追加しました`);
+}
+
+function removeFromPlaylist(itemId) {
+  const playlist = getActivePlaylist();
+  if (!playlist) return;
+  const idx = playlist.items.findIndex(i => i.id === itemId);
+  if (idx >= 0) playlist.items.splice(idx, 1);
+  renderPlaylistSelector();
+  renderPlaylistItems();
+}
+
+function renderPlaylistSelector() {
+  const sel = document.getElementById('playlistSelector');
+  sel.innerHTML = '<option value="">-- プレイリストを選択 --</option>';
+  playlists.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = `${p.name}（${p.items.length}曲）`;
+    if (p.id === activePlaylistId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  document.getElementById('savePlaylistBtn').disabled   = !activePlaylistId;
+  document.getElementById('deletePlaylistBtn').disabled = !activePlaylistId;
+}
+
+function renderPlaylistItems() {
+  const area      = document.getElementById('playlistItemsArea');
+  const container = document.getElementById('playlistItems');
+  const playlist  = getActivePlaylist();
+  if (!playlist) { area.style.display = 'none'; return; }
+
+  area.style.display = '';
+  container.innerHTML = '';
+  if (playlist.items.length === 0) {
+    container.innerHTML = '<div style="font-size:0.82rem;color:#555;padding:8px 0;">アイテムがありません。作品管理パネルから追加してください。</div>';
+    return;
+  }
+  playlist.items.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'playlist-item';
+
+    const num = document.createElement('span');
+    num.className = 'playlist-item-num';
+    num.textContent = `${idx + 1}.`;
+
+    const audio = document.createElement('span');
+    audio.className = 'playlist-item-audio';
+    audio.textContent = item.audioName;
+
+    const arrow = document.createElement('span');
+    arrow.className = 'playlist-item-arrow';
+    arrow.textContent = '→';
+
+    const csv = document.createElement('span');
+    csv.className = 'playlist-item-csv' + (item.csvFile ? '' : ' no-csv');
+    csv.textContent = item.csvName || 'CSVなし';
+
+    const del = document.createElement('button');
+    del.className = 'playlist-item-del';
+    del.textContent = '✕';
+    del.title = '削除';
+    del.addEventListener('click', () => removeFromPlaylist(item.id));
+
+    row.append(num, audio, arrow, csv, del);
+    container.appendChild(row);
+  });
+}
+
+async function playPlaylist() {
+  const playlist = getActivePlaylist();
+  if (!playlist || playlist.items.length === 0) {
+    showToast('プレイリストにアイテムがありません', true);
+    return;
+  }
+  if (isPlaying) stopPlayback();
+
+  pathTracks = playlist.items.map(item => ({
+    audioFile: item.audioFile,
+    audioName: item.audioName,
+    csvFile:   item.csvFile,
+    csvName:   item.csvName,
+  }));
+  currentTrackIndex = 0;
+
+  await loadTrackAt(0);
+  updateTrackUI();
+
+  audioEl.addEventListener('canplay', function() {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    audioEl.play().then(() => {
+      startCommandTimer();
+      isPlaying = true;
+      document.getElementById('playBtn').classList.add('playing');
+      document.getElementById('playBtn').textContent = '⏸';
+    }).catch(() => {});
+  }, { once: true });
+}
+
+function savePlaylistToFile() {
+  const playlist = getActivePlaylist();
+  if (!playlist) return;
+  // ブラウザ版はFileオブジェクトをJSONに含められないため名前のみ保存
+  const data = {
+    version: 1,
+    playlist: {
+      name: playlist.name,
+      items: playlist.items.map(item => ({
+        id:        item.id,
+        audioName: item.audioName,
+        csvName:   item.csvName || null,
+      })),
+    },
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${playlist.name}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`「${playlist.name}.json」をダウンロードしました`);
+}
+
+function onPlaylistFileSelected(event) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.playlist || !Array.isArray(data.playlist.items)) throw new Error('プレイリスト形式が不正です');
+
+      const loaded = data.playlist;
+      // ファイルオブジェクトは保存できないため、現在のフォルダから名前で紐づける
+      const items = loaded.items.map(item => {
+        const audioObj = currentWork?.audioFiles.find(f => f.name === item.audioName);
+        const csvObj   = item.csvName ? currentWork?.csvFiles.find(f => f.name === item.csvName) : null;
+        return {
+          id:        item.id || generateId(),
+          audioName: item.audioName,
+          audioFile: audioObj?.file || null,
+          csvName:   item.csvName || null,
+          csvFile:   csvObj?.file  || null,
+        };
+      });
+
+      const existing = playlists.find(p => p.name === loaded.name);
+      if (existing) {
+        existing.items   = items;
+        activePlaylistId = existing.id;
+        showToast(`プレイリスト「${existing.name}」を更新しました`);
+      } else {
+        const newPl = { id: generateId(), name: loaded.name, items };
+        playlists.push(newPl);
+        activePlaylistId = newPl.id;
+        showToast(`プレイリスト「${newPl.name}」を読み込みました`);
+      }
+
+      const unresolvedCount = items.filter(i => !i.audioFile).length;
+      if (unresolvedCount > 0) {
+        showToast(`⚠ ${unresolvedCount}件のファイルが未解決です。フォルダを開いて同名ファイルを読み込むか、再度保存してください。`, true);
+      }
+
+      renderPlaylistSelector();
+      renderPlaylistItems();
+      updateWorkLinkUI();
+    } catch (err) {
+      showToast(`読み込み失敗: ${err.message}`, true);
+    }
+  };
+  reader.readAsText(file);
 }
 
 async function prevTrack() {
@@ -1508,8 +2090,12 @@ function startCommandTimer() {
 
     if (!isConnected) return;
     try {
+      const fmt = document.getElementById('cmdFormat').value;
       if (csvFormat === 5) {
         await sendRawCommand(vals.leftDir, vals.leftSpeed, vals.rightDir, vals.rightSpeed);
+      } else if (fmt === 'vorze_tw' || fmt === 'raw4') {
+        // 3列CSVでデュアルモーター形式の場合、左右に同じ値をミラーリング
+        await sendRawCommand(vals.direction, vals.speed, vals.direction, vals.speed);
       } else {
         await sendRawCommand(vals.direction, vals.speed);
       }
