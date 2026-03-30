@@ -1,7 +1,7 @@
 # 音声CSVパターン分析ツール 依存ライブラリ
 # pip install -r requirements.txt
 
-# GUI フレームワーク
+# GUI フレームワーク (デスクトップGUI版 gui.py 用)
 dearpygui>=1.9.0,<2
 
 # 音声再生
@@ -17,3 +17,8 @@ pyinstaller>=5.0
 # 発話検出
 # webrtcvad は setuptools の新バージョンでビルド失敗するため webrtcvad-wheels を使用
 webrtcvad-wheels>=2.0.10
+
+# Streamlit版 (streamlit_app.py) 追加依存ライブラリ
+# pip install streamlit pandas
+streamlit>=1.32.0
+pandas>=2.0.0

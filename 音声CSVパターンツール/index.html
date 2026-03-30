@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>音声CSVパターン分析ツール</title>
+<title>音声CSVパターン分析ツール v2.0</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -17,6 +17,19 @@ body {
 
 h1 { font-size: 1.5rem; margin-bottom: 4px; color: #e94560; text-align: center; }
 .subtitle { font-size: 0.82rem; color: #888; margin-bottom: 18px; text-align: center; }
+
+/* --- Streamlit banner --- */
+.streamlit-banner {
+  max-width: 900px; margin: 0 auto 16px; background: #0f3460;
+  border: 1px solid #e94560; border-radius: 8px; padding: 10px 16px;
+  display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: #ccc;
+}
+.streamlit-banner .banner-icon { font-size: 1.2rem; flex-shrink: 0; }
+.streamlit-banner strong { color: #e94560; }
+.streamlit-banner code {
+  background: #1a1a2e; padding: 2px 6px; border-radius: 4px;
+  color: #a0c4ff; font-family: 'Consolas', monospace; font-size: 0.8rem;
+}
 
 /* --- Section common --- */
 .section { max-width: 900px; margin: 0 auto 20px; background: #16213e; border-radius: 10px; padding: 16px; }
@@ -376,6 +389,17 @@ canvas#timelineCanvas { display: block; }
 <!-- ========== Title ========== -->
 <h1>音声CSVパターン分析ツール</h1>
 <p class="subtitle">音声ファイルの発話区間を検出し、CSVパターンとのマッチング分析・テンプレート管理を行います</p>
+
+<!-- ========== Streamlit Banner ========== -->
+<div class="streamlit-banner">
+  <span class="banner-icon">🐍</span>
+  <div>
+    <strong>Streamlit版も利用できます</strong>　—
+    同フォルダの <code>streamlit_app.py</code> を
+    <code>streamlit run streamlit_app.py</code> で起動すると
+    サーバーサイド処理 (webrtcvad) 対応のブラウザUIで分析できます。
+  </div>
+</div>
 
 <!-- ========== Step 1: Audio File ========== -->
 <div class="section" id="sectionAudio">
