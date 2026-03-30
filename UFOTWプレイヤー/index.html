@@ -482,21 +482,23 @@ details summary::-webkit-details-marker { color: #e94560; }
   <div class="bt-grid">
     <div class="form-group">
       <label>デバイス名フィルター（前方一致・空白で全検索）</label>
-      <input type="text" id="btNameFilter" placeholder="例: UFO" value="UFO">
+      <input type="text" id="btNameFilter" placeholder="例: UFO-TW" value="UFO-TW">
     </div>
     <div class="form-group">
       <label>サービス UUID</label>
-      <input type="text" id="btServiceUUID" value="0000fff0-0000-1000-8000-00805f9b34fb">
+      <input type="text" id="btServiceUUID" value="40ee0200-63ec-4b7f-8ce7-712efd55b90e">
     </div>
     <div class="form-group">
       <label>キャラクタリスティック UUID（書き込み）</label>
-      <input type="text" id="btCharUUID" value="0000fff1-0000-1000-8000-00805f9b34fb">
+      <input type="text" id="btCharUUID" value="40ee0202-63ec-4b7f-8ce7-712efd55b90e">
     </div>
     <div class="form-group">
       <label>コマンドフォーマット</label>
       <select id="cmdFormat">
+        <option value="vorze_tw" selected>Vorze UFO TW（3バイト: 0x05, 左(Dir«7|Speed), 右(Dir«7|Speed)）</option>
+        <option value="vorze_sa">Vorze A10 Cyclone SA / Piston（2バイト: 0x01, Dir«7|Speed）</option>
         <option value="lovense">Lovense互換（テキスト "Vibrate:XX;\r\n"）</option>
-        <option value="raw1" selected>1バイト（速度のみ 0x00-0xFF）</option>
+        <option value="raw1">1バイト（速度のみ 0x00-0xFF）</option>
         <option value="raw2">2バイト [方向, 速度]</option>
         <option value="raw4">4バイト [左Dir, 左速, 右Dir, 右速]</option>
         <option value="kiiroo">Kiiroo互換 [0x01, speed, 0x00, 0x00]</option>
@@ -530,7 +532,19 @@ details summary::-webkit-details-marker { color: #e94560; }
     </div>
     <button class="btn btn-secondary" style="align-self:flex-end;" onclick="testCommand()">テスト送信</button>
   </div>
+  <div class="bt-grid" style="margin-top:8px;">
+    <div class="form-group">
+      <label>パワースケール（0.01〜1.5、デフォルト 1.0）</label>
+      <input type="number" id="scaleFactor" value="1.0" min="0.01" max="1.5" step="0.05" style="width:80px;">
+    </div>
+  </div>
   <div class="form-group" style="margin-top:8px;">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="invertedFlag">
+      左右反転（UFO-TW を逆向きに装着している場合）
+    </label>
+  </div>
+  <div class="form-group" style="margin-top:4px;">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
       <input type="checkbox" id="btAutoReconnect" checked>
       切断時に自動再接続する（最大5回、指数バックオフ）
@@ -661,7 +675,8 @@ details summary::-webkit-details-marker { color: #e94560; }
 
     <div class="settings-section-title">UUID 参考情報</div>
     <div class="uuid-hint">
-      Vorze UFO TW / UFO SA / A10 Cyclone SA — サービス: <code>40ee1111-63ec-4b7f-8ce7-712efd55b90e</code> &nbsp;キャラクタリスティック: <code>40ee2222-63ec-4b7f-8ce7-712efd55b90e</code><br>
+      UFO-TW — サービス: <code>40ee0200-63ec-4b7f-8ce7-712efd55b90e</code> &nbsp;キャラクタリスティック: <code>40ee0202-63ec-4b7f-8ce7-712efd55b90e</code><br>
+      UFO SA / A10 Cyclone SA / Piston — サービス: <code>40ee1111-63ec-4b7f-8ce7-712efd55b90e</code> &nbsp;キャラクタリスティック: <code>40ee2222-63ec-4b7f-8ce7-712efd55b90e</code><br>
       汎用BLE（多数の玩具）— サービス: <code>0000fff0-0000-1000-8000-00805f9b34fb</code> &nbsp;キャラクタリスティック: <code>0000fff1-0000-1000-8000-00805f9b34fb</code>
     </div>
   </details>
@@ -753,8 +768,17 @@ async function scanBtServices() {
   showToast('デバイスを検索中...');
   try {
     const inputServiceUUID = document.getElementById('btServiceUUID').value.trim();
+    // UFO-TW 実機プロトコル解析で確認済みのサービスUUID群（優先）
+    const UFO_TW_SERVICE_UUIDS = [
+      '40ee0100-63ec-4b7f-8ce7-712efd55b90e',
+      '40ee0200-63ec-4b7f-8ce7-712efd55b90e',
+      '40ee2222-63ec-4b7f-8ce7-712efd55b90e',
+      '722a1c08-1a25-4941-6205-bd0fd52415a9',
+    ];
+    const UFO_TW_CHAR_UUID = '40ee0202-63ec-4b7f-8ce7-712efd55b90e';
     const KNOWN_SERVICE_UUIDS = [
-      '40ee1111-63ec-4b7f-8ce7-712efd55b90e', // ★ Vorze UFO TW / UFO SA / A10 Cyclone SA / Piston (正式UUID)
+      ...UFO_TW_SERVICE_UUIDS,                 // ★ UFO-TW 実機確認済みUUID（優先）
+      '40ee1111-63ec-4b7f-8ce7-712efd55b90e', // Vorze UFO SA / A10 Cyclone SA / Piston
       '0000fff0-0000-1000-8000-00805f9b34fb', // 汎用BLE制御（多数の玩具）
       '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART Service (NUS)
       '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Microchip BM70
@@ -799,6 +823,28 @@ async function scanBtServices() {
           // このUUIDは存在しないか権限なし
         }
       }
+    }
+
+    // UFO-TW 優先: 各サービスから 40ee0202 を直接探し、見つかれば即確定
+    for (const service of services) {
+      try {
+        const char = await service.getCharacteristic(UFO_TW_CHAR_UUID);
+        if (char.properties.write || char.properties.writeWithoutResponse) {
+          // UFO-TW確定 → UI に自動入力して接続
+          bluetoothDevice = device;
+          bluetoothDevice.removeEventListener('gattserverdisconnected', onBtDisconnected);
+          bluetoothDevice.addEventListener('gattserverdisconnected', onBtDisconnected);
+          isUserDisconnected = false;
+          reconnectAttempts = 0;
+          finishScanConnect({
+            serviceUUID: service.uuid,
+            charUUID: char.uuid,
+            propLabels: ['write/writeWithoutResponse'],
+            characteristic: char
+          });
+          return;
+        }
+      } catch (_) {}
     }
 
     // 書き込み可能なキャラクタリスティックを全サービスから収集
@@ -898,7 +944,11 @@ async function connectBluetooth() {
   // 指定UUIDに加えて既知UUIDも optionalServices に含めることで
   // GATT接続後に他サービスへのアクセス権を確保する
   const BT_KNOWN_UUIDS = [
-    '40ee1111-63ec-4b7f-8ce7-712efd55b90e',
+    '40ee0100-63ec-4b7f-8ce7-712efd55b90e', // UFO-TW 実機確認済み
+    '40ee0200-63ec-4b7f-8ce7-712efd55b90e', // UFO-TW 実機確認済み
+    '40ee2222-63ec-4b7f-8ce7-712efd55b90e', // UFO-TW 実機確認済み
+    '722a1c08-1a25-4941-6205-bd0fd52415a9', // UFO-TW 実機確認済み
+    '40ee1111-63ec-4b7f-8ce7-712efd55b90e', // Vorze UFO SA / A10 Cyclone SA
     '0000fff0-0000-1000-8000-00805f9b34fb',
     '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
     '49535343-fe7d-4ae5-8fa9-9fafd205e455',
@@ -1064,6 +1114,24 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
   const speedByte = Math.round(speed * 2.55); // 0-100 → 0-255
 
   switch (fmt) {
+    case 'vorze_tw': {
+      // UFO-TW プロトコル: [0x05, leftByte, rightByte]
+      // 各バイト: bit7=方向(1=逆転), bit0-6=パワー(0-100)
+      const scaleFactor = Math.max(0.01, Math.min(1.5,
+        parseFloat(document.getElementById('scaleFactor')?.value) || 1.0));
+      const inverted = document.getElementById('invertedFlag')?.checked ?? false;
+      const scaledLeft  = Math.min(100, Math.round(speed * scaleFactor));
+      const scaledRight = Math.min(100, Math.round((rightSpeed || 0) * scaleFactor));
+      let leftByte  = ((dir & 0x01) << 7) | scaledLeft;
+      let rightByte = (((rightDir || 0) & 0x01) << 7) | scaledRight;
+      if (inverted) { const tmp = leftByte; leftByte = rightByte; rightByte = tmp; }
+      return new Uint8Array([0x05, leftByte, rightByte]);
+    }
+    case 'vorze_sa': {
+      // A10 Cyclone SA / Piston: [0x01, motorByte]
+      const motorByte = ((dir & 0x01) << 7) | speed;
+      return new Uint8Array([0x01, motorByte]);
+    }
     case 'lovense': {
       const text = `Vibrate:${speed};\r\n`;
       return new TextEncoder().encode(text);
@@ -1083,13 +1151,25 @@ function buildCommandBytes(dir, speed, rightDir, rightSpeed) {
   }
 }
 
+// "GATT operation already in progress" エラーかどうかを判定
+function isGattBusy(err) {
+  return err && typeof err.message === 'string' &&
+    err.message.toLowerCase().includes('gatt operation already in progress');
+}
+
 async function sendRawCommand(dir, speed, rightDir = 0, rightSpeed = 0) {
   if (!gattCharacteristic) return;
   const bytes = buildCommandBytes(dir, speed, rightDir, rightSpeed);
-  if (gattCharacteristic.properties.writeWithoutResponse) {
-    await gattCharacteristic.writeValueWithoutResponse(bytes);
-  } else {
-    await gattCharacteristic.writeValue(bytes);
+  // "GATT operation already in progress" は連続書き込み時に発生する既知エラーのため静かに無視する
+  try {
+    if (gattCharacteristic.properties.writeWithoutResponse) {
+      await gattCharacteristic.writeValueWithoutResponse(bytes);
+    } else {
+      await gattCharacteristic.writeValue(bytes);
+    }
+  } catch (err) {
+    if (isGattBusy(err)) return;
+    throw err;
   }
 }
 
