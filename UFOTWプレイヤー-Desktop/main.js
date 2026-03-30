@@ -9,6 +9,7 @@ const fs   = require('fs');
 protocol.registerSchemesAsPrivileged([{
   scheme: 'local',
   privileges: {
+    standard: true,        // <audio>/<video> 要素からのメディアロードに必須
     secure: true,          // HTTPS扱いにして制限を回避
     supportFetchAPI: true, // fetch() でアクセス可能
     stream: true,          // 音声シーク用 Range リクエストをストリームで処理

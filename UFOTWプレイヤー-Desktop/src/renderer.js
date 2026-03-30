@@ -42,7 +42,8 @@ const KNOWN_SERVICE_UUIDS = [
 ];
 
 let audioEl = null;
-let audioCtx = null;
+let waveformCtx = null; // 波形生成専用 AudioContext（再生制御とは無関係）
+let waveformAbort = null; // 波形生成キャンセル用 AbortController
 let analyser = null;
 let sourceNode = null;
 let waveformRAF = null;
@@ -705,30 +706,36 @@ async function applyAudioTrack(file) {
   document.getElementById('playBtn').disabled = false;
   document.getElementById('stopBtn').disabled = false;
 
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  // 前回の波形生成をキャンセル
+  if (waveformAbort) { waveformAbort.abort(); waveformAbort = null; }
+  if (waveformCtx) { waveformCtx.close(); waveformCtx = null; }
   drawWaveformEmpty();
 
   if (window.electronAPI && file.path) {
     // local:// URL 経由: path-based モードと同じ Range ベースの波形生成
     showToast(`音声: ${file.name}`);
+    const ac = new AbortController();
+    waveformAbort = ac;
     (async () => {
       try {
         const MAX_WAVEFORM = 100 * 1024 * 1024;
         // ファイルサイズを 1 バイト Range リクエストで先行取得し、巨大ファイルの全転送を回避
-        const sizeRes = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+        const sizeRes = await fetch(url, { headers: { Range: 'bytes=0-0' }, signal: ac.signal });
         const contentRange = sizeRes.headers.get('Content-Range');
         const fileSize = contentRange ? parseInt(contentRange.split('/')[1] || '0', 10) : 0;
         if (fileSize > MAX_WAVEFORM) {
           showToast(`音声: ${file.name}（波形スキップ: ${(fileSize / 1024 / 1024).toFixed(0)}MB）`);
           return;
         }
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: ac.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const arrayBuffer = await res.arrayBuffer();
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-        drawWaveform(decoded);
+        if (ac.signal.aborted) return;
+        waveformCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const decoded = await waveformCtx.decodeAudioData(arrayBuffer);
+        if (!ac.signal.aborted) drawWaveform(decoded);
       } catch (err) {
+        if (err.name === 'AbortError') return;
         drawWaveformEmpty();
         showToast(`波形生成失敗: ${err.message}`, true);
       }
@@ -739,13 +746,17 @@ async function applyAudioTrack(file) {
     if (file.size > MAX_WAVEFORM_FILE) {
       showToast(`音声: ${file.name}（波形スキップ: ${(file.size / 1024 / 1024).toFixed(0)}MB）`);
     } else {
+      const ac = new AbortController();
+      waveformAbort = ac;
       const reader = new FileReader();
       reader.onload = async e => {
+        if (ac.signal.aborted) return;
         try {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          const decoded = await audioCtx.decodeAudioData(e.target.result);
-          drawWaveform(decoded);
+          waveformCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const decoded = await waveformCtx.decodeAudioData(e.target.result);
+          if (!ac.signal.aborted) drawWaveform(decoded);
         } catch (err) {
+          if (err.name === 'AbortError') return;
           drawWaveformEmpty();
           showToast(`波形生成失敗: ${err.message}`, true);
         }
@@ -765,12 +776,14 @@ function togglePlayback() {
     document.getElementById('playBtn').classList.remove('playing');
     document.getElementById('playBtn').textContent = '▶';
   } else {
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    audioEl.play();
-    startCommandTimer();
-    isPlaying = true;
-    document.getElementById('playBtn').classList.add('playing');
-    document.getElementById('playBtn').textContent = '⏸';
+    audioEl.play().then(() => {
+      startCommandTimer();
+      isPlaying = true;
+      document.getElementById('playBtn').classList.add('playing');
+      document.getElementById('playBtn').textContent = '⏸';
+    }).catch(err => {
+      showToast(`再生失敗: ${err.message}`, true);
+    });
   }
 }
 
@@ -797,13 +810,12 @@ async function onAudioEnded() {
     document.getElementById('playBtn').textContent = '▶';
     await loadTrackAt(currentTrackIndex + 1);
     audioEl.addEventListener('canplay', function() {
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       audioEl.play().then(() => {
         startCommandTimer();
         isPlaying = true;
         document.getElementById('playBtn').classList.add('playing');
         document.getElementById('playBtn').textContent = '⏸';
-      }).catch(() => {});
+      }).catch(err => { showToast(`再生失敗: ${err.message}`, true); });
     }, { once: true });
   } else {
     stopPlayback();
@@ -850,13 +862,12 @@ async function prevTrack() {
   await loadTrackAt(currentTrackIndex - 1);
   if (wasPlaying) {
     audioEl.addEventListener('canplay', function() {
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       audioEl.play().then(() => {
         startCommandTimer();
         isPlaying = true;
         document.getElementById('playBtn').classList.add('playing');
         document.getElementById('playBtn').textContent = '⏸';
-      }).catch(() => {});
+      }).catch(err => { showToast(`再生失敗: ${err.message}`, true); });
     }, { once: true });
   }
 }
@@ -868,13 +879,12 @@ async function nextTrack() {
   await loadTrackAt(currentTrackIndex + 1);
   if (wasPlaying) {
     audioEl.addEventListener('canplay', function() {
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
       audioEl.play().then(() => {
         startCommandTimer();
         isPlaying = true;
         document.getElementById('playBtn').classList.add('playing');
         document.getElementById('playBtn').textContent = '⏸';
-      }).catch(() => {});
+      }).catch(err => { showToast(`再生失敗: ${err.message}`, true); });
     }, { once: true });
   }
 }
@@ -1122,27 +1132,32 @@ async function applyAudioFromPath(audioPath, audioName) {
     showToast(`音声: ${audioName}`);
 
     // 波形描画: local:// URL 経由で fetch → decodeAudioData
-    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    if (waveformAbort) { waveformAbort.abort(); waveformAbort = null; }
+    if (waveformCtx) { waveformCtx.close(); waveformCtx = null; }
     drawWaveformEmpty();
+    const ac = new AbortController();
+    waveformAbort = ac;
     (async () => {
       try {
         const MAX_WAVEFORM = 100 * 1024 * 1024;
         // 1バイトの Range リクエストでファイルサイズを先に確認し、
         // 巨大ファイルの全バイト転送によるレンダラーフリーズを防ぐ
-        const sizeRes = await fetch(fileUrl, { headers: { Range: 'bytes=0-0' } });
+        const sizeRes = await fetch(fileUrl, { headers: { Range: 'bytes=0-0' }, signal: ac.signal });
         const contentRange = sizeRes.headers.get('Content-Range');
         const fileSize = contentRange ? parseInt(contentRange.split('/')[1] || '0', 10) : 0;
         if (fileSize > MAX_WAVEFORM) {
           showToast(`波形スキップ: ${(fileSize / 1024 / 1024).toFixed(0)}MB`);
           return;
         }
-        const res = await fetch(fileUrl);
+        const res = await fetch(fileUrl, { signal: ac.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const arrayBuffer = await res.arrayBuffer();
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-        drawWaveform(decoded);
+        if (ac.signal.aborted) return;
+        waveformCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const decoded = await waveformCtx.decodeAudioData(arrayBuffer);
+        if (!ac.signal.aborted) drawWaveform(decoded);
       } catch (decErr) {
+        if (decErr.name === 'AbortError') return;
         drawWaveformEmpty();
         showToast(`波形生成失敗: ${decErr.message}`, true);
       }
@@ -1493,7 +1508,7 @@ async function playPlaylist() {
   updateTrackUI();
 
   audioEl.addEventListener('canplay', function() {
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (waveformCtx && waveformCtx.state === 'suspended') waveformCtx.resume();
     audioEl.play().then(() => {
       startCommandTimer();
       isPlaying = true;
