@@ -9,10 +9,12 @@ const fs   = require('fs');
 protocol.registerSchemesAsPrivileged([{
   scheme: 'local',
   privileges: {
-    standard: true,        // <audio>/<video> 要素からのメディアロードに必須
+    // standard: true は NOT 設定。設定するとChromiumが local:// をナビゲーション可能な
+    // スキームとして扱い、audioEl.src への代入がページ遷移トリガーになってしまう。
+    // <audio>/<video> 要素のメディアロードは stream: true だけで動作する。
     secure: true,          // HTTPS扱いにして制限を回避
     supportFetchAPI: true, // fetch() でアクセス可能
-    stream: true,          // 音声シーク用 Range リクエストをストリームで処理
+    stream: true,          // 音声シーク用 Range リクエストをストリームで処理 ＋ <audio>/<video> 要素対応
     bypassCSP: true,
     corsEnabled: true,
   }
